@@ -25,8 +25,9 @@
             cursor: grab;
             position: relative;
             scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
         }
-        canvas { display: block; height: 200px !important; }
+        canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
         #installBtn { display: none; background: #334155; }
     </style>
@@ -129,44 +130,6 @@
         function getWeatherDesc(code) { return weatherMap[code] || "보통"; }
         function isBadWeather(code) { return code >= 51; }
 
-        try {
-            const manifest = {
-                "name": "UV Tracker v2",
-                "short_name": "UV AI",
-                "start_url": ".",
-                "display": "standalone",
-                "background_color": "#F8FAFC",
-                "theme_color": "#FF8A00",
-                "icons": [{ "src": "https://placehold.co/192x192/FF8A00/FFF?text=UV", "sizes": "192x192", "type": "image/png" }]
-            };
-            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-            const manifestURL = URL.createObjectURL(manifestBlob);
-            const link = document.createElement('link');
-            link.rel = 'manifest';
-            link.href = manifestURL;
-            document.head.appendChild(link);
-
-            if ('serviceWorker' in navigator) {
-                const swCode = "self.addEventListener('fetch', function(e) { e.respondWith(fetch(e.request)); });";
-                const swDataUri = "data:application/javascript;base64," + btoa(swCode);
-                navigator.serviceWorker.register(swDataUri).catch(err => console.warn("SW registration issue", err.message));
-            }
-        } catch (e) { console.warn("PWA setup restricted", e); }
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault(); deferredPrompt = e;
-            document.getElementById('installBtn').style.display = 'flex';
-        });
-
-        document.getElementById('installBtn').addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') document.getElementById('installBtn').style.display = 'none';
-                deferredPrompt = null;
-            }
-        });
-
         async function initLocation() {
             const btn = document.getElementById("updateBtn");
             const icon = document.getElementById("updateIcon");
@@ -193,8 +156,9 @@
                 updateUI(data.current_weather);
                 
                 const nowH = new Date().getHours();
-                const startIdx = Math.max(0, nowH - 3);
-                const endIdx = startIdx + 28; 
+                // 타임라인에서 현재 시간이 두 번째로 오도록 인덱스 조정 (직전 시간 포함)
+                const startIdx = Math.max(0, nowH - 1); 
+                const endIdx = startIdx + 25; 
                 
                 drawScrollableChart("uvChart", 
                     uvData.slice(startIdx, endIdx), 
@@ -206,7 +170,6 @@
                 fetchLocationName(currentLat, currentLon);
             } catch (e) {
                 console.error(e);
-                document.getElementById("uvDesc").innerText = "데이터 연결 실패";
             } finally {
                 document.getElementById("updateBtn").disabled = false;
                 document.getElementById("updateIcon").classList.remove("animate-spin");
@@ -266,10 +229,10 @@
             const wrapper = canvas.parentElement;
             const dpr = window.devicePixelRatio || 1;
             
-            const step = 48; 
-            const totalWidth = step * uvs.length;
-            const h = 200;
-            const px = 30; 
+            const step = 55; 
+            const px = 70; // 여백을 더 확보하여 직전 시간 아이콘이 잘리지 않게 조정
+            const totalWidth = step * uvs.length + (px * 2);
+            const h = 210;
             
             canvas.style.width = totalWidth + "px";
             canvas.width = totalWidth * dpr;
@@ -279,101 +242,102 @@
             const nowH = new Date().getHours();
             ctx.clearRect(0, 0, totalWidth, h);
 
-            // Layer 1: Strong Red Gradient & Now Indicator (BACKGROUND)
             uvs.forEach((uv, i) => {
-                const x = px + i * step;
-                const absoluteHourIndex = startTime + i;
-                const isRealNow = isToday && absoluteHourIndex === nowH;
+            const x = px + i * step;
+            const isRealNow = isToday && (startTime + i) === nowH;
 
-                // Golden Time Gradient (VIVID RED)
-                if (uv >= 6 && !isBadWeather(codes[i])) {
-                    const grad = ctx.createLinearGradient(0, 0, 0, h);
-                    grad.addColorStop(0, 'rgba(239, 68, 68, 0.25)'); // Strong Vivid Red
-                    grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(x - step/2, 0, step, h);
-                }
-
-                // Now Indicator Line (Always BEHIND icons)
-                if (isRealNow) {
-                    ctx.setLineDash([4, 4]);
-                    ctx.strokeStyle = 'rgba(255, 138, 0, 0.5)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-            });
-
-            // Layer 2: Guide dots
-            uvs.forEach((_, i) => {
-                const x = px + i * step;
-                ctx.setLineDash([2, 2]);
-                ctx.strokeStyle = 'rgba(0,0,0,0.03)';
-                ctx.beginPath(); ctx.moveTo(x, 40); ctx.lineTo(x, h - 30); ctx.stroke();
-            });
+            // 시간별 세로 점선 복구
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = isRealNow ? 'rgba(255, 138, 0, 0.5)' : 'rgba(0, 0, 0, 0.06)';
+            ctx.lineWidth = isRealNow ? 2 : 1;
+            ctx.beginPath(); 
+            ctx.moveTo(x, 5); // 점선을 상단 끝까지 연장
+            ctx.lineTo(x, h - 30); 
+            ctx.stroke();
             ctx.setLineDash([]);
 
-            // Layer 3: Dynamic Temperature Curve (Y: 55-85)
-            const visibleTemps = temps;
-            const tMin = Math.min(...visibleTemps), tMax = Math.max(...visibleTemps), tRange = (tMax - tMin) || 5;
+            // 골든타임 배경 그라데이션 - 아이콘보다 높게 (y=5부터 시작)
+            if (uv >= 6 && !isBadWeather(codes[i])) {
+                const grad = ctx.createLinearGradient(0, 5, 0, h - 30);
+                grad.addColorStop(0, 'rgba(239, 68, 68, 0.22)'); 
+                grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(x - step/2, 5, step, h - 35);
+            }
+        });
+
+        const tMin = Math.min(...temps), tMax = Math.max(...temps), tRange = (tMax - tMin) || 5;
             const getTempY = (t) => 85 - ((t - tMin) / tRange) * 30;
 
             ctx.beginPath();
-            ctx.strokeStyle = 'rgba(96, 165, 250, 0.6)'; ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(96, 165, 250, 0.4)'; ctx.lineWidth = 1.5;
             temps.forEach((t, i) => {
                 const x = px + i * step; 
-                if (i === 0) ctx.moveTo(x, getTempY(t)); 
-                else ctx.lineTo(x, getTempY(t));
+                if (i === 0) ctx.moveTo(x, getTempY(t)); else ctx.lineTo(x, getTempY(t));
             });
             ctx.stroke();
 
-            // Layer 4: UV Index Curve (Y: ~160)
+            // 온도 숫자 복구
+            temps.forEach((t, i) => {
+                const x = px + i * step;
+                const y = getTempY(t);
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
+                ctx.font = '700 9px Inter'; ctx.textAlign = 'center';
+                ctx.fillText(Math.round(t) + "°", x, y - 8);
+            });
+
             ctx.beginPath();
             ctx.strokeStyle = '#FF8A00'; ctx.lineWidth = 3;
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
-                const y = 160 - (uv * 8); 
-                if (i === 0) ctx.moveTo(x, y); 
-                else ctx.lineTo(x, y);
+                const y = 170 - (uv * 9); 
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             });
             ctx.stroke();
 
-            // Layer 5: Labels and Icons (TOP)
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
-                const absoluteHourIndex = startTime + i;
-                const hour = absoluteHourIndex % 24;
+                const hour = (startTime + i) % 24;
                 const badW = isBadWeather(codes[i]);
-                const isRealNow = isToday && absoluteHourIndex === nowH;
+                const isRealNow = isToday && (startTime + i) === nowH;
 
                 ctx.font = '16px Inter'; ctx.textAlign = 'center';
                 ctx.fillText(getWeatherEmoji(codes[i]), x, 25);
 
-                ctx.fillStyle = 'rgba(96, 165, 250, 1)'; ctx.font = 'bold 9px Inter';
-                ctx.fillText(Math.round(temps[i]) + '°', x, getTempY(temps[i]) - 8);
+                const uvY = 170 - (uv * 9);
+                ctx.fillStyle = badW ? '#CBD5E1' : (uv >= 6 ? '#EF4444' : '#FF8A00');
+                ctx.beginPath(); ctx.arc(x, uvY, 4.5, 0, Math.PI * 2); ctx.fill();
+                
+                ctx.font = 'bold 11px Inter';
+                ctx.fillText(uv.toFixed(1), x, uvY - 12);
 
-                const uvY = 160 - (uv * 8);
-                ctx.fillStyle = uv >= 6 && !badW ? '#EF4444' : (badW ? '#CBD5E1' : '#FF8A00');
-                ctx.beginPath(); ctx.arc(x, uvY, 3.5, 0, Math.PI * 2); ctx.fill();
-                ctx.font = 'bold 9px Inter';
-                ctx.fillText(uv.toFixed(1), x, uvY - 8);
-
+                // 시간: '시' 없이 숫자만 표기
                 ctx.fillStyle = isRealNow ? '#FF8A00' : '#94A3B8';
-                ctx.font = isRealNow ? 'bold 12px Inter' : 'bold 10px Inter';
+                ctx.font = isRealNow ? 'bold 13px Inter' : '600 10px Inter';
                 ctx.fillText(hour, x, h - 10);
             });
 
-            // Handle Initial Scrolling
-            if (isToday) {
-                // Scroll to 2nd position (Current is index 3)
-                wrapper.scrollLeft = (3 * step) - step + 15;
-            } else {
-                // SCROLL TO PEAK UV (Center it)
-                const maxUv = Math.max(...uvs);
-                const peakIdx = uvs.indexOf(maxUv);
-                const wrapWidth = wrapper.clientWidth;
-                wrapper.scrollLeft = (peakIdx * step) + px - (wrapWidth / 2) + (step / 2);
-            }
+            requestAnimationFrame(() => {
+                const wrapperWidth = wrapper.offsetWidth;
+                let targetIdx = 0;
+                let scrollPos = 0;
+
+                if (isToday) {
+                    // 1. 현재시간이 왼쪽에서 두 번째로 오도록 정렬 (직전 시간 안 잘리게)
+                    targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
+                    if(targetIdx === -1) targetIdx = 0;
+                    // (타겟X좌표) - (한 칸 크기 + 적절한 여백)
+                    scrollPos = (targetIdx * step) + px - step - 10;
+                } else {
+                    // 2. 주간 예보: 그날의 골든타임(피크시간)이 정가운데 오도록 정렬
+                    let maxVal = -1;
+                    uvs.forEach((v, idx) => { if(v > maxVal) { maxVal = v; targetIdx = idx; } });
+                    // (타겟X좌표) - (화면 절반)
+                    scrollPos = (targetIdx * step) + px - (wrapperWidth / 2);
+                }
+                
+                wrapper.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
+            });
         }
 
         function renderWeekly() {
@@ -412,6 +376,7 @@
             const content = document.getElementById(`content-${i}`);
             const arrow = document.getElementById(`arrow-${i}`);
             const isOpen = content.classList.contains('open');
+            
             document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open'));
             document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
             
@@ -420,12 +385,13 @@
                 arrow.classList.add('rotate-180');
                 setTimeout(() => {
                     const startIdx = i * 24;
+                    // 오늘인 경우 현재시간 정렬을 위해 isToday=true 전달
                     drawScrollableChart(`chart-${i}`, 
                         uvData.slice(startIdx, startIdx + 24), 
                         tempData.slice(startIdx, startIdx + 24), 
                         hourlyWeather.slice(startIdx, startIdx + 24), 
                         0, 
-                        i === 0
+                        (i === 0) 
                     );
                 }, 100);
             }
