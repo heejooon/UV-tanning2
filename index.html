@@ -28,7 +28,7 @@
                 <span class="text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-2">Current UV Index</span>
                 <div class="flex items-baseline gap-3">
                     <span id="uvValue" class="text-8xl font-black text-[#FF8A00] tracking-tighter leading-none">--</span>
-                    <span id="uvBadge" class="bg-gray-100 text-gray-400 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4 transition-colors duration-500">Wait</span>
+                    <span id="uvBadge" class="bg-gray-100 text-gray-400 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4 transition-all duration-500">Wait</span>
                 </div>
             </div>
             <div class="flex flex-col items-end">
@@ -38,6 +38,7 @@
         </div>
         
         <div class="bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100/50">
+            <!-- break-keep 적용으로 단어 단위 줄바꿈 보장 -->
             <p id="uvDesc" class="text-slate-600 text-[13px] font-semibold leading-relaxed break-keep" style="word-break: keep-all;">
                 현재 위치의 기상 정보를 분석하고 있습니다...
             </p>
@@ -60,24 +61,25 @@
         </div>
     </div>
 
-    <div class="card p-6 mb-5 bg-gradient-to-br from-orange-500 to-[#FF8A00] text-white border-none shadow-orange-200">
+    <div class="card p-7 mb-5 bg-gradient-to-br from-orange-500 to-[#FF8A00] text-white border-none shadow-orange-200">
         <div class="flex items-center gap-2 mb-3 opacity-90">
             <div class="p-1.5 bg-white/20 rounded-lg">
                 <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
             </div>
             <h2 class="font-bold text-xs uppercase tracking-widest">Today's Golden Time</h2>
         </div>
+        <!-- 설명 텍스트 없이 시간만 표시 -->
         <div id="goldenTime" class="text-5xl font-black tracking-tighter">-- ~ --</div>
     </div>
 
     <div class="card p-7 mb-5">
         <h2 class="text-slate-800 font-black text-xl mb-6 flex items-center gap-2.5 tracking-tight">
             <i data-lucide="bar-chart-3" class="w-6 h-6 text-orange-500"></i>
-            UV 타임라인 (09-18시)
+            UV 타임라인 (09-18)
         </h2>
         <div class="flex gap-4 mb-8 overflow-x-auto pb-1 no-scrollbar">
-            <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-[#FF8A00]"></span> <span class="text-[10px] font-black text-slate-400 uppercase">UV</span></div>
-            <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> <span class="text-[10px] font-black text-slate-400 uppercase">Temp</span></div>
+            <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-[#FF8A00]"></span> <span class="text-[10px] font-black text-slate-400 uppercase">UV Index</span></div>
+            <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> <span class="text-[10px] font-black text-slate-400 uppercase">Temp Line</span></div>
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-4 h-2 rounded bg-red-100 border border-red-200"></span> <span class="text-[10px] font-black text-slate-400 uppercase">Golden</span></div>
         </div>
         <div class="relative w-full">
@@ -94,7 +96,6 @@
             <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest">7 Days</span>
         </div>
         <div id="weeklyList" class="space-y-1">
-            <!-- Skeleton Loader -->
             <div class="flex justify-center py-12"><div class="w-8 h-8 border-[4px] border-orange-100 border-t-orange-500 rounded-full animate-spin"></div></div>
         </div>
     </div>
@@ -114,7 +115,6 @@
             const icon = document.getElementById("updateIcon");
             btn.disabled = true;
             icon.classList.add("animate-spin");
-            document.getElementById("uvDesc").innerText = "위치 정보를 확인하고 있습니다...";
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
@@ -179,36 +179,27 @@
             const list = document.getElementById("weeklyList");
             list.innerHTML = "";
             const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
-            
             for (let i = 0; i < 7; i++) {
-                const date = new Date();
-                date.setDate(date.getDate() + i);
+                const date = new Date(); date.setDate(date.getDate() + i);
                 const maxUv = weeklyData.uv_index_max[i];
                 const emoji = getWeatherEmoji(weeklyData.weather_code[i]);
                 const isOptimal = maxUv >= 6;
-
                 const row = document.createElement("div");
                 row.className = "border-b border-slate-50 last:border-0";
                 row.innerHTML = `
                     <div onclick="toggleDay(${i})" class="flex items-center justify-between py-5 cursor-pointer active:bg-slate-50 px-3 rounded-2xl transition-all group">
                         <div class="flex items-center gap-4">
                             <span class="w-9 font-black text-xs ${i===0?'text-blue-500':'text-slate-400'}">${i===0?'오늘':dayNames[date.getDay()]}</span>
-                            <span class="text-2xl drop-shadow-sm">${emoji}</span>
+                            <span class="text-2xl">${emoji}</span>
                         </div>
                         <div class="flex-1 mx-5">
                             <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
                                 <div class="h-full ${isOptimal?'bg-orange-500':'bg-slate-300'}" style="width: ${Math.min(maxUv*10, 100)}%"></div>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-[13px] font-black ${isOptimal?'text-orange-500':'text-slate-400'}">${maxUv.toFixed(1)}</span>
-                            <i data-lucide="chevron-down" id="arrow-${i}" class="w-4 h-4 text-slate-300 transition-transform duration-300"></i>
-                        </div>
+                        <div class="flex items-center gap-3"><span class="text-[13px] font-black ${isOptimal?'text-orange-500':'text-slate-400'}">${maxUv.toFixed(1)}</span><i data-lucide="chevron-down" id="arrow-${i}" class="w-4 h-4 text-slate-300 transition-transform duration-300"></i></div>
                     </div>
-                    <div id="content-${i}" class="chart-container">
-                        <canvas id="chart-${i}"></canvas>
-                    </div>
-                `;
+                    <div id="content-${i}" class="chart-container"><canvas id="chart-${i}"></canvas></div>`;
                 list.appendChild(row);
             }
             lucide.createIcons();
@@ -218,15 +209,13 @@
             const content = document.getElementById(`content-${i}`);
             const arrow = document.getElementById(`arrow-${i}`);
             const isOpen = content.classList.contains('open');
-            
             document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open'));
             document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
-
             if (!isOpen) {
                 content.classList.add('open');
                 arrow.classList.add('rotate-180');
-                const startIdx = i * 24 + 9;
                 setTimeout(() => {
+                    const startIdx = i * 24 + 9;
                     drawBaseChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 10), tempData.slice(startIdx, startIdx + 10), hourlyWeather.slice(startIdx, startIdx + 10), i === 0);
                 }, 100);
             }
@@ -238,33 +227,37 @@
             const ctx = canvas.getContext("2d");
             const dpr = window.devicePixelRatio || 1;
             const rect = canvas.getBoundingClientRect();
-            
             canvas.width = rect.width * dpr;
             canvas.height = 200 * dpr;
             ctx.scale(dpr, dpr);
 
-            // 좌우 여백(px)을 줄여서 그래프를 더 넓게 표현
-            const w = rect.width, h = 200, px = 15, pt = 40, pb = 50;
-            const cw = w - px * 2, ch = h - pt - pb;
-            const step = cw / (uvs.length - 1);
+            const w = rect.width, h = 200, px = 15;
+            const step = (w - px * 2) / (uvs.length - 1);
             const nowH = new Date().getHours();
 
             ctx.clearRect(0, 0, w, h);
 
-            // 1. Draw Golden Area Background (Red Gradient)
-            const grad = ctx.createLinearGradient(0, pt, 0, pt + ch);
+            // --- TIER COORDINATES (FIXED) ---
+            const WEATHER_Y = 22;      
+            const TEMP_Y = 50;         
+            const UV_TOP = 80;         
+            const UV_BOTTOM = 150;     
+            const TIME_Y = 185;        
+
+            // 1. Draw Golden Area Background (Now extends to the VERY TOP 0 point)
+            const grad = ctx.createLinearGradient(0, 0, 0, UV_BOTTOM);
             grad.addColorStop(0, "rgba(239, 68, 68, 0.15)");
             grad.addColorStop(1, "rgba(239, 68, 68, 0.0)");
             ctx.fillStyle = grad;
-            
             uvs.forEach((v, i) => {
                 if (v >= 6) {
                     const x = px + i * step;
-                    ctx.fillRect(x - step/2, pt, step, ch);
+                    // 시작점 y를 0으로 설정하여 아이콘 위쪽까지 덮음
+                    ctx.fillRect(x - step/2, 0, step, UV_BOTTOM);
                 }
             });
 
-            // 2. Draw Vertical Dashed Lines
+            // 2. Draw Vertical Lines
             uvs.forEach((v, i) => {
                 const x = px + i * step;
                 const isCurrent = isToday && (i + 9 === nowH);
@@ -272,70 +265,74 @@
                 ctx.setLineDash([4, 4]);
                 ctx.strokeStyle = isCurrent ? "rgba(255, 138, 0, 0.6)" : "#F1F5F9";
                 ctx.lineWidth = isCurrent ? 2 : 1;
-                ctx.moveTo(x, pt);
-                ctx.lineTo(x, h - pb);
+                ctx.moveTo(x, 10);
+                ctx.lineTo(x, UV_BOTTOM);
                 ctx.stroke();
                 ctx.setLineDash([]);
             });
 
-            // 3. Draw UV Line
+            // 3. Draw Temperature Trend Line
+            ctx.beginPath();
+            ctx.strokeStyle = "#CBD5E1";
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]);
+            const minT = Math.min(...temps), maxT = Math.max(...temps), tR = (maxT - minT) || 5;
+            temps.forEach((t, i) => {
+                const x = px + i * step;
+                const y = (TEMP_Y + 12) - ((t - minT) / tR) * 10;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 4. Draw UV Index Line (Main)
             ctx.beginPath();
             ctx.strokeStyle = "#FF8A00";
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 3.5;
             ctx.lineJoin = "round";
-            ctx.lineCap = "round";
             uvs.forEach((v, i) => {
-                const x = px + i * step, y = h - pb - (v / 12) * ch;
+                const x = px + i * step;
+                const y = UV_BOTTOM - (v / 12) * (UV_BOTTOM - UV_TOP);
                 if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             });
             ctx.stroke();
 
-            // 4. Points and Labels
+            // 5. Points and Fixed Labels
             uvs.forEach((v, i) => {
-                const x = px + i * step, y = h - pb - (v / 12) * ch;
+                const x = px + i * step;
                 const isCurrent = isToday && (i + 9 === nowH);
 
-                // Temperature
-                ctx.fillStyle = "#94A3B8";
-                ctx.font = "bold 10px Inter";
+                ctx.font = "16px Inter";
                 ctx.textAlign = "center";
-                ctx.fillText(Math.round(temps[i]) + "°", x, pt - 15);
+                ctx.fillText(getWeatherEmoji(codes[i]), x, WEATHER_Y);
 
-                // UV Point
+                ctx.fillStyle = "#94A3B8";
+                ctx.font = "bold 9px Inter";
+                ctx.fillText(Math.round(temps[i]) + "°", x, TEMP_Y);
+
+                const uvY = UV_BOTTOM - (v / 12) * (UV_BOTTOM - UV_TOP);
                 ctx.beginPath();
-                ctx.arc(x, y, isCurrent ? 7 : 5, 0, Math.PI * 2);
-                ctx.fillStyle = v >= 6 ? "#EF4444" : (v >= 3 ? "#FF8A00" : "#CBD5E1");
-                if (isCurrent) {
-                    ctx.shadowColor = "rgba(255, 138, 0, 0.5)";
-                    ctx.shadowBlur = 10;
-                }
+                ctx.arc(x, uvY, isCurrent ? 6 : 4, 0, Math.PI * 2);
+                ctx.fillStyle = v >= 6 ? "#EF4444" : "#FF8A00";
                 ctx.fill();
-                ctx.shadowBlur = 0;
                 ctx.strokeStyle = "white";
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 1.5;
                 ctx.stroke();
 
-                // UV Value Label
                 ctx.fillStyle = isCurrent ? "#1E293B" : "#94A3B8";
-                ctx.font = isCurrent ? "900 12px Inter" : "bold 10px Inter";
-                ctx.fillText(v.toFixed(1), x, y - 14);
-
-                // Time (간소화: 숫자만)
-                ctx.fillStyle = isCurrent ? "#FF8A00" : "#94A3B8";
                 ctx.font = isCurrent ? "900 11px Inter" : "bold 10px Inter";
-                ctx.fillText((i + 9), x, h - pb + 20);
+                ctx.fillText(v.toFixed(1), x, uvY - 10);
 
-                // Weather Emoji
-                ctx.font = "16px Inter";
-                ctx.fillText(getWeatherEmoji(codes[i]), x, h - 10);
+                ctx.fillStyle = isCurrent ? "#FF8A00" : "#94A3B8";
+                ctx.font = "bold 10px Inter";
+                ctx.fillText((i + 9), x, TIME_Y);
             });
         }
 
         async function fetchLocationName(lat, lon) {
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-                const data = await res.json();
-                const a = data.address;
+                const data = await res.json(); const a = data.address;
                 document.getElementById("locationName").innerText = (a.city || a.province || a.town || "내 위치") + " " + (a.suburb || "");
             } catch { document.getElementById("locationName").innerText = "내 위치"; }
         }
