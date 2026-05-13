@@ -18,12 +18,12 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 스크롤 가능한 차트 래퍼 */
         .scroll-chart-wrapper { 
             width: 100%; 
             overflow-x: auto; 
             cursor: grab;
             position: relative;
+            scroll-behavior: smooth;
         }
         canvas { display: block; height: 200px !important; }
         
@@ -64,7 +64,7 @@
                     <span id="lastUpdate" class="text-[11px] font-bold text-slate-600">--:--</span>
                 </div>
             </div>
-            <button id="updateBtn" onclick="initLocation()" class="btn-update text-white px-5 py-3 rounded-2xl flex items-center gap-2 transition-all active:scale-95 hover:brightness-110 font-bold text-sm shrink-0 shadow-lg">
+            <button id="updateBtn" onclick="initLocation()" class="btn-update text-white px-5 py-3 rounded-2xl flex items-center gap-2 transition-all active:scale-95 hover:brightness-110 font-bold text-sm shrink-0 shadow-lg whitespace-nowrap">
                 <i id="updateIcon" data-lucide="refresh-cw" class="w-4 h-4"></i>
                 <span>업데이트</span>
             </button>
@@ -144,7 +144,6 @@
 
         async function fetchData() {
             try {
-                // 48시간(오늘+내일) 데이터를 가져옴
                 const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&hourly=uv_index,temperature_2m,weather_code&daily=uv_index_max,weather_code&current_weather=true&timezone=Asia%2FSeoul`);
                 const data = await res.json();
                 uvData = data.hourly.uv_index;
@@ -154,7 +153,6 @@
 
                 updateUI(data.current_weather);
                 
-                // 타임라인 차트: 현재 시간 -3시간부터 24시간 후까지 (총 28시간)
                 const nowH = new Date().getHours();
                 const startIdx = Math.max(0, nowH - 3);
                 const endIdx = Math.min(uvData.length, nowH + 25);
@@ -264,7 +262,6 @@
                 arrow.classList.add('rotate-180');
                 setTimeout(() => {
                     const startIdx = i * 24;
-                    // 주간 예보는 00시부터 24시까지 (총 25개 포인트)
                     drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 25), tempData.slice(startIdx, startIdx + 25), hourlyWeather.slice(startIdx, startIdx + 25), 0, i === 0);
                 }, 100);
             }
@@ -277,7 +274,6 @@
             const wrapper = canvas.parentElement;
             const dpr = window.devicePixelRatio || 1;
             
-            // 화면 너비를 기준으로 8시간이 보이도록 캔버스 너비 설정
             const viewportWidth = wrapper.clientWidth;
             const unitWidth = viewportWidth / 8; 
             const totalWidth = unitWidth * uvs.length;
@@ -293,14 +289,14 @@
 
             ctx.clearRect(0, 0, totalWidth, h);
 
-            // --- Y 좌표 설정 (고정) ---
+            // --- Y 축 레이어 설정 ---
             const WEATHER_Y = 22;      
             const TEMP_Y = 50;         
             const UV_TOP = 80;         
             const UV_BOTTOM = 150;     
             const TIME_Y = 185;        
 
-            // 1. 골든 타임 영역 (천장부터 바닥까지)
+            // 1. 골든 타임 영역 (천장까지 확장)
             const grad = ctx.createLinearGradient(0, 0, 0, UV_BOTTOM);
             grad.addColorStop(0, "rgba(239, 68, 68, 0.15)");
             grad.addColorStop(1, "rgba(239, 68, 68, 0.0)");
@@ -312,7 +308,7 @@
                 }
             });
 
-            // 2. 수직 점선 (가이드라인)
+            // 2. 수직 가이드 점선
             uvs.forEach((v, i) => {
                 const x = px + i * step;
                 const currentHourLabel = (startTime + i) % 24;
@@ -322,15 +318,15 @@
                 ctx.setLineDash([4, 4]);
                 ctx.strokeStyle = isCurrent ? "rgba(255, 138, 0, 0.6)" : "#F1F5F9";
                 ctx.lineWidth = isCurrent ? 2 : 1;
-                ctx.moveTo(x, 10);
+                ctx.moveTo(x, 5);
                 ctx.lineTo(x, UV_BOTTOM);
                 ctx.stroke();
                 ctx.setLineDash([]);
             });
 
-            // 3. 온도 추세선
+            // 3. 온도 추세 점선
             ctx.beginPath();
-            ctx.strokeStyle = "rgba(203, 213, 225, 0.5)";
+            ctx.strokeStyle = "rgba(203, 213, 225, 0.4)";
             ctx.lineWidth = 1;
             ctx.setLineDash([2, 2]);
             const minT = Math.min(...temps), maxT = Math.max(...temps), tR = (maxT - minT) || 5;
@@ -342,7 +338,7 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // 4. UV 지수 메인 곡선
+            // 4. UV 지수 굵은 메인 곡선
             ctx.beginPath();
             ctx.strokeStyle = "#FF8A00";
             ctx.lineWidth = 3.5;
@@ -354,18 +350,19 @@
             });
             ctx.stroke();
 
-            // 5. 포인트 및 레이블
+            // 5. 포인트 및 텍스트 렌더링
             uvs.forEach((v, i) => {
                 const x = px + i * step;
                 const currentHourLabel = (startTime + i) % 24;
                 const isCurrent = isToday && (currentHourLabel === nowH);
+                const isGolden = v >= 6;
 
-                // 날씨 아이콘
+                // 날씨 아이콘 (상단 고정 축)
                 ctx.font = "16px Inter";
                 ctx.textAlign = "center";
                 ctx.fillText(getWeatherEmoji(codes[i]), x, WEATHER_Y);
 
-                // 온도 수치
+                // 온도 수치 (아이콘 하단 고정)
                 ctx.fillStyle = "#94A3B8";
                 ctx.font = "bold 9px Inter";
                 ctx.fillText(Math.round(temps[i]) + "°", x, TEMP_Y);
@@ -374,7 +371,7 @@
                 const uvY = UV_BOTTOM - (v / 12) * (UV_BOTTOM - UV_TOP);
                 ctx.beginPath();
                 ctx.arc(x, uvY, isCurrent ? 6 : 4, 0, Math.PI * 2);
-                ctx.fillStyle = v >= 6 ? "#EF4444" : "#FF8A00";
+                ctx.fillStyle = isGolden ? "#EF4444" : "#FF8A00";
                 ctx.fill();
                 ctx.strokeStyle = "white";
                 ctx.lineWidth = 1.5;
@@ -385,15 +382,33 @@
                 ctx.font = isCurrent ? "900 11px Inter" : "bold 10px Inter";
                 ctx.fillText(v.toFixed(1), x, uvY - 10);
 
-                // 시간 축 (숫자만)
-                ctx.fillStyle = isCurrent ? "#FF8A00" : "#94A3B8";
-                ctx.font = isCurrent ? "900 11px Inter" : "bold 10px Inter";
+                // 시간 축 (숫자만 표시, 골든타임일 경우 빨간색 강조)
+                if (isCurrent) {
+                    ctx.fillStyle = "#FF8A00";
+                    ctx.font = "900 11px Inter";
+                } else if (isGolden) {
+                    ctx.fillStyle = "#EF4444";
+                    ctx.font = "900 11px Inter";
+                } else {
+                    ctx.fillStyle = "#94A3B8";
+                    ctx.font = "bold 10px Inter";
+                }
                 ctx.fillText(currentHourLabel, x, TIME_Y);
             });
 
-            // 스크롤 위치 현재 시간으로 초기화 (타임라인만)
+            // 스크롤 위치 제어
             if (isToday && id === "uvChart") {
+                // 타임라인: 현재 시간 기준 센터링
                 const scrollPos = px + (nowH - startTime) * step - (viewportWidth / 2);
+                wrapper.scrollLeft = scrollPos;
+            } else {
+                // 주간 예보: 자외선 최고점 기준 센터링
+                let maxVal = -1;
+                let maxIdx = 0;
+                uvs.forEach((val, idx) => {
+                    if (val > maxVal) { maxVal = val; maxIdx = idx; }
+                });
+                const scrollPos = px + maxIdx * step - (viewportWidth / 2);
                 wrapper.scrollLeft = scrollPos;
             }
         }
