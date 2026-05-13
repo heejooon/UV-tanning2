@@ -367,8 +367,10 @@ function drawScrollableChart(id, uvs, temps, codes, startTime, isToday) {
             });
 
             if (isToday && id === "uvChart") {
-                // 현재 시간이 왼쪽에서 2번째 칸에 오도록 (현재시간X - unitWidth + 여백)
-                const scrollPos = (nowH - startTime) * step - step + px;
+                // 현재 시간 인덱스 계산
+                const targetIdx = nowH - startTime;
+                // (이전 시간의 X좌표) - (작은 여백) 만큼 스크롤하여 직전 시간이 잘리지 않게 함
+                const scrollPos = px + (targetIdx - 1) * step - 15;
                 wrapper.scrollLeft = scrollPos;
             } else if (id !== "uvChart") {
                 // 주간 예보의 경우 최고점 찾기
