@@ -30,11 +30,9 @@
         }
         canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
-        #installBtn { display: none; }
     </style>
 </head>
 <body class="p-2 md:p-3 max-w-2xl mx-auto pb-16">
-
     <div class="card p-7 mb-4 relative">
         <div class="flex items-center justify-between mb-8">
             <div class="flex flex-col">
@@ -60,14 +58,8 @@
             <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1.5 bg-slate-100/50 px-3 py-2 rounded-full border border-slate-200/50">
                     <i data-lucide="map-pin" class="w-3.5 h-3.5 text-blue-500"></i>
-                    <span id="locationName" class="text-[11px] font-bold text-slate-600 truncate max-w-[90px]">위치 확인 중</span>
+                    <span id="locationName" class="text-[11px] font-bold text-slate-600 truncate max-w-[110px]">위치 찾는 중...</span>
                 </div>
-                
-                <button id="installBtn" class="flex items-center gap-1.5 bg-slate-800 px-3 py-2 rounded-full border border-slate-700 text-white active:scale-95 transition-all shadow-sm">
-                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                    <span class="text-[11px] font-bold uppercase tracking-wider">App</span>
-                </button>
-
                 <div class="flex items-center gap-1.5 bg-slate-100/50 px-3 py-2 rounded-full border border-slate-200/50">
                     <i data-lucide="clock" class="w-3.5 h-3.5 text-orange-400"></i>
                     <span id="lastUpdate" class="text-[11px] font-bold text-slate-600">--:--</span>
@@ -124,7 +116,6 @@
     <script>
         let uvData = [], tempData = [], hourlyWeather = [], weeklyData = [];
         let currentLat = 37.5038, currentLon = 126.7535;
-        let deferredPrompt;
 
         const weatherEmoji = { 0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️", 51: "🌦️", 53: "🌦️", 55: "🌦️", 61: "🌧️", 63: "🌧️", 65: "🌧️", 80: "🌦️", 81: "🌧️", 82: "🌧️", 95: "⚡", 96: "⛈️", 99: "⛈️" };
         const weatherMap = { 0: "맑음", 1: "대체로 맑음", 2: "구름 조금", 3: "흐림", 45: "안개", 51: "이슬비", 61: "비", 80: "소나기", 95: "뇌우" };
@@ -132,22 +123,6 @@
         function getWeatherEmoji(code) { return weatherEmoji[code] || "🌡️"; }
         function getWeatherDesc(code) { return weatherMap[code] || "보통"; }
         function isBadWeather(code) { return code >= 51; }
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            const installBtn = document.getElementById('installBtn');
-            if (installBtn) installBtn.style.display = 'flex';
-        });
-
-        document.getElementById('installBtn')?.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') document.getElementById('installBtn').style.display = 'none';
-                deferredPrompt = null;
-            }
-        });
 
         async function initLocation() {
             const btn = document.getElementById("updateBtn");
@@ -176,7 +151,7 @@
                 renderWeekly();
                 
                 const nowH = new Date().getHours();
-                const startIdx = Math.max(0, nowH - 3); // 현재 시간 -3부터 시작
+                const startIdx = Math.max(0, nowH - 3); 
                 const endIdx = startIdx + 28; 
                 
                 drawScrollableChart("uvChart", 
@@ -187,8 +162,9 @@
                     true
                 );
                 fetchLocationName(currentLat, currentLon);
-            } catch (e) { console.error("Data Fetch Error:", e); }
-            finally {
+            } catch (e) { 
+                console.error("Data Fetch Error:", e); 
+            } finally {
                 document.getElementById("updateBtn").disabled = false;
                 document.getElementById("updateIcon").classList.remove("animate-spin");
                 lucide.createIcons();
@@ -218,19 +194,15 @@
 
             const badge = document.getElementById("uvBadge");
             const desc = document.getElementById("uvDesc");
-            
             if (uv >= 8) {
-                badge.innerText = "위험";
-                badge.className = "bg-red-500 text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4";
-                desc.innerText = "자외선이 매우 강합니다. 장시간 노출을 피하세요.";
+                badge.innerText = "위험"; badge.className = "bg-red-500 text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase relative -top-4";
+                desc.innerText = "자외선이 매우 강합니다. 노출을 피하세요.";
             } else if (uv >= 6) {
-                badge.innerText = "최적";
-                badge.className = "bg-[#FF8A00] text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4";
-                desc.innerText = "태닝 효율이 가장 좋은 시간대입니다. 자외선 차단에 유의하세요.";
+                badge.innerText = "최적"; badge.className = "bg-[#FF8A00] text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase relative -top-4";
+                desc.innerText = "태닝 효율이 가장 좋은 시간대입니다.";
             } else {
-                badge.innerText = "낮음";
-                badge.className = "bg-gray-400 text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4";
-                desc.innerText = "현재 자외선 지수가 낮아 태닝 효율이 떨어집니다.";
+                badge.innerText = "낮음"; badge.className = "bg-gray-400 text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase relative -top-4";
+                desc.innerText = "현재 자외선 지수가 낮습니다.";
             }
         }
 
@@ -241,8 +213,8 @@
             const wrapper = canvas.parentElement;
             const dpr = window.devicePixelRatio || 1;
             
-            const step = 45; // 한 화면에 7~8개 보이도록 간격 조정
-            const px = 40; 
+            const step = 45; 
+            const px = 70; 
             const totalWidth = step * uvs.length + (px * 2);
             const h = 210;
             
@@ -254,7 +226,6 @@
             const nowH = new Date().getHours();
             ctx.clearRect(0, 0, totalWidth, h);
 
-            // 가이드 점선 및 골든타임 배경
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
                 const isRealNow = isToday && (startTime + i) === nowH;
@@ -274,7 +245,6 @@
                 }
             });
 
-            // 온도 그래프
             const tMin = Math.min(...temps), tMax = Math.max(...temps), tRange = (tMax - tMin) || 5;
             const getTempY = (t) => 85 - ((t - tMin) / tRange) * 30;
 
@@ -286,7 +256,6 @@
             });
             ctx.stroke();
 
-            // 온도 숫자
             temps.forEach((t, i) => {
                 const x = px + i * step;
                 ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
@@ -294,7 +263,6 @@
                 ctx.fillText(Math.round(t) + "°", x, getTempY(t) - 8);
             });
 
-            // UV 그래프
             ctx.beginPath();
             ctx.strokeStyle = '#FF8A00'; ctx.lineWidth = 3;
             uvs.forEach((uv, i) => {
@@ -304,7 +272,6 @@
             });
             ctx.stroke();
 
-            // UV 점 및 시간 (숫자만)
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
                 const hour = (startTime + i) % 24;
@@ -328,17 +295,15 @@
 
             requestAnimationFrame(() => {
                 const wrapperWidth = wrapper.offsetWidth;
+                let targetIdx = 0;
                 let scrollPos = 0;
 
                 if (isToday) {
-                    // 현재 시간(Now)의 인덱스 찾기
-                    const targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
-                    // 현재 시간이 왼쪽에서 정확히 두 번째 칸에 오도록 (즉, index 1 위치)
-                    // scrollPos = (현재시간 위치) - (한 칸 크기)
-                    scrollPos = (targetIdx * step) + px - step;
+                    targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
+                    // Now가 2번째 슬롯에 오도록: scrollPos = (현재x) - (step + px여유)
+                    scrollPos = (targetIdx * step) + px - step - 10;
                 } else {
-                    // 주간 예보 등은 골든타임 피크가 중앙에 오도록
-                    let maxVal = -1, targetIdx = 0;
+                    let maxVal = -1;
                     uvs.forEach((v, idx) => { if(v > maxVal) { maxVal = v; targetIdx = idx; } });
                     scrollPos = (targetIdx * step) + px - (wrapperWidth / 2);
                 }
@@ -395,7 +360,7 @@
                         tempData.slice(startIdx, startIdx + 24), 
                         hourlyWeather.slice(startIdx, startIdx + 24), 
                         0, 
-                        false // 주간 예보는 무조건 골든타임 중앙 정렬
+                        false 
                     );
                 }, 100);
             }
