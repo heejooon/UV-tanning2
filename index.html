@@ -30,7 +30,7 @@
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
     </style>
 </head>
-<body class="p-4 md:p-8 max-w-2xl mx-auto pb-16">
+<body class="p-2 md:p-8 max-w-2xl mx-auto pb-16">
 
     <div class="card p-7 mb-5 relative">
         <div class="flex items-center justify-between mb-8">
@@ -260,26 +260,27 @@
                 content.classList.add('open');
                 arrow.classList.add('rotate-180');
                 setTimeout(() => {
-                    const startIdx = i * 24;
-                    drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, i === 0);
-                }, 100);
-            }
-        }
+            const startIdx = i * 24;
+            drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, i === 0);
+        }, 100);
+    }
+}
 
-        function drawScrollableChart(id, uvs, temps, codes, startTime, isToday) {
-            const canvas = document.getElementById(id);
-            if (!canvas) return;
-            const ctx = canvas.getContext("2d");
-            const wrapper = canvas.parentElement;
-            const dpr = window.devicePixelRatio || 1;
-            
-            const unitWidth = 65; 
-            const totalWidth = unitWidth * uvs.length;
-            const h = 200;
-            const px = 30; // 가로 여백
-            
-            canvas.style.width = totalWidth + "px";
-            canvas.width = totalWidth * dpr;
+function drawScrollableChart(id, uvs, temps, codes, startTime, isToday) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const wrapper = canvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    
+    // unitWidth를 48px로 조정하여 모바일에서 약 8시간이 보이도록 설정
+    const unitWidth = 48; 
+    const totalWidth = unitWidth * uvs.length;
+    const h = 200;
+    const px = 30; // 가로 여백
+    
+    canvas.style.width = totalWidth + "px";
+    canvas.width = totalWidth * dpr;
             canvas.height = h * dpr;
             ctx.scale(dpr, dpr);
 
