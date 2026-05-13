@@ -6,7 +6,7 @@
 <title>UV & Weather AI Tracker</title>
 
 <meta name="theme-color" content="#FF8A00"/>
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json"/>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
@@ -56,6 +56,8 @@ max-height:250px;
 </head>
 
 <body class="p-4 md:p-8 max-w-2xl mx-auto pb-12">
+
+<!-- TOP CARD -->
 
 <div class="card p-6 mb-4">
 
@@ -135,8 +137,12 @@ class="w-3.5 h-3.5"></i>
 <span id="btnText">업데이트</span>
 
 </button>
+
 </div>
+
 </div>
+
+<!-- GOLDEN TIME -->
 
 <div class="card p-6 mb-4">
 
@@ -157,6 +163,8 @@ class="text-4xl font-bold text-[#FF8A00]">
 </div>
 
 </div>
+
+<!-- CHART -->
 
 <div class="card p-6 mb-4">
 
@@ -193,6 +201,8 @@ style="background:linear-gradient(to bottom,rgba(239,68,68,.15),rgba(239,68,68,0
 
 </div>
 
+<!-- WEEKLY -->
+
 <div class="card p-6 mb-4">
 
 <div class="flex items-center gap-2 mb-4">
@@ -218,6 +228,7 @@ class="space-y-1 text-sm">
 </div>
 
 </div>
+
 </div>
 
 <script>
@@ -237,9 +248,18 @@ const weatherMap={
 3:"흐림",
 45:"안개",
 48:"안개",
+51:"약한 이슬비",
+53:"이슬비",
+55:"강한 이슬비",
 61:"약한 비",
 63:"보통 비",
-65:"강한 비"
+65:"강한 비",
+80:"약한 소나기",
+81:"소나기",
+82:"강한 소나기",
+95:"뇌우",
+96:"뇌우/우박",
+99:"강한 뇌우"
 };
 
 const weatherEmoji={
@@ -249,9 +269,18 @@ const weatherEmoji={
 3:"☁️",
 45:"🌫️",
 48:"🌫️",
+51:"🌦️",
+53:"🌦️",
+55:"🌦️",
 61:"🌧️",
 63:"🌧️",
-65:"🌧️"
+65:"🌧️",
+80:"🌦️",
+81:"🌧️",
+82:"🌧️",
+95:"⚡",
+96:"⛈️",
+99:"⛈️"
 };
 
 function getWeatherDesc(code){
@@ -269,7 +298,9 @@ const icon=document.getElementById("updateIcon");
 const text=document.getElementById("btnText");
 
 btn.disabled=true;
+
 icon.classList.add("animate-spin-custom");
+
 text.innerText="로딩 중...";
 
 if(navigator.geolocation){
@@ -283,11 +314,15 @@ currentLon=pos.coords.longitude;
 
 loadUVData(currentLat,currentLon);
 
+fetchLocationName(currentLat,currentLon);
+
 },
 
 ()=>{
 
 loadUVData(currentLat,currentLon);
+
+fetchLocationName(currentLat,currentLon);
 
 },
 
@@ -299,7 +334,10 @@ loadUVData(currentLat,currentLon);
 
 loadUVData(currentLat,currentLon);
 
+fetchLocationName(currentLat,currentLon);
+
 }
+
 }
 
 async function loadUVData(lat,lon){
@@ -329,7 +367,10 @@ true
 
 }catch(e){
 
-console.error(e);
+console.error("데이터 로드 실패",e);
+
+document.getElementById("uvDesc").innerText=
+"데이터를 불러오지 못했습니다.";
 
 }finally{
 
@@ -346,6 +387,7 @@ text.innerText="업데이트";
 lucide.createIcons();
 
 }
+
 }
 
 function updateUI(current){
@@ -356,13 +398,63 @@ const hour=now.getHours();
 
 const uv=uvData[hour]||0;
 
-document.getElementById("uvValue").innerText=uv.toFixed(1);
+document.getElementById("uvValue").innerText=
+uv.toFixed(1);
+
+const badge=document.getElementById("uvBadge");
+const desc=document.getElementById("uvDesc");
+
+if(uv>=8){
+
+badge.innerText="위험";
+
+badge.className=
+"bg-red-500 text-white px-2.5 py-1 rounded-lg text-[11px] font-bold";
+
+desc.innerText=
+"자외선이 매우 강합니다.";
+
+}else if(uv>=6){
+
+badge.innerText="최적";
+
+badge.className=
+"bg-[#FF8A00] text-white px-2.5 py-1 rounded-lg text-[11px] font-bold";
+
+desc.innerText=
+"태닝 효율 최고 시간대입니다.";
+
+}else if(uv>=3){
+
+badge.innerText="보통";
+
+badge.className=
+"bg-orange-300 text-white px-2.5 py-1 rounded-lg text-[11px] font-bold";
+
+desc.innerText=
+"적당한 자외선입니다.";
+
+}else{
+
+badge.innerText="낮음";
+
+badge.className=
+"bg-gray-400 text-white px-2.5 py-1 rounded-lg text-[11px] font-bold";
+
+desc.innerText=
+"현재 태닝 효율 낮음.";
+
+}
+
+if(current){
 
 document.getElementById("currentTemp").innerText=
 Math.round(current.temperature)+"°";
 
 document.getElementById("currentWeatherDesc").innerText=
 getWeatherDesc(current.weathercode);
+
+}
 
 document.getElementById("lastUpdate").innerText=
 now.getHours().toString().padStart(2,'0')
@@ -382,6 +474,7 @@ if(start===-1)start=i;
 end=i;
 
 }
+
 }
 
 document.getElementById("goldenTime").innerText=
@@ -389,30 +482,135 @@ start!==-1
 ? `${start} ~ ${end+1}시`
 : "오늘 없음";
 
-const badge=document.getElementById("uvBadge");
-const desc=document.getElementById("uvDesc");
+const weeklyList=
+document.getElementById("weeklyList");
 
-if(uv>=8){
+weeklyList.innerHTML="";
 
-badge.innerText="위험";
-badge.className="bg-red-500 text-white px-2 py-1 rounded-lg text-[11px] font-bold";
-desc.innerText="자외선이 매우 강합니다.";
+const days=["일","월","화","수","목","금","토"];
 
-}else if(uv>=6){
+for(let i=0;i<7;i++){
 
-badge.innerText="최적";
-badge.className="bg-[#FF8A00] text-white px-2 py-1 rounded-lg text-[11px] font-bold";
-desc.innerText="태닝 효율 최고 시간대입니다.";
+const date=new Date();
 
-}else{
+date.setDate(date.getDate()+i);
 
-badge.innerText="낮음";
-badge.className="bg-gray-400 text-white px-2 py-1 rounded-lg text-[11px] font-bold";
-desc.innerText="현재 태닝 효율 낮음.";
+const maxUv=
+weeklyData.uv_index_max[i];
+
+const weatherDesc=
+getWeatherDesc(
+weeklyData.weather_code[i]
+);
+
+const icon=
+getWeatherEmoji(
+weeklyData.weather_code[i]
+);
+
+let status="비권장";
+let colorClass="text-gray-400";
+let barClass="bg-gray-300";
+
+if(maxUv>=6){
+
+status="최적";
+colorClass="text-red-500";
+barClass="bg-red-500";
+
+}
+
+const rowWrapper=
+document.createElement("div");
+
+rowWrapper.className=
+"border-b border-gray-50 last:border-0";
+
+const row=
+document.createElement("div");
+
+row.className=
+"flex justify-between items-center py-3 cursor-pointer hover:bg-gray-50 transition-colors px-1 rounded-xl active:bg-gray-100";
+
+row.innerHTML=`
+
+<span class="w-8 flex-shrink-0 font-bold ${i===0?'text-blue-500':''} text-gray-700 text-xs">
+${i===0?'오늘':days[date.getDay()]}
+</span>
+
+<div class="flex-1 flex items-center mx-2">
+
+<div class="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+
+<div class="h-full ${barClass}"
+style="width:${Math.min(maxUv*10,100)}%">
+</div>
+
+</div>
+
+</div>
+
+<div class="flex-shrink-0 flex items-center gap-1.5 text-[11px] font-bold">
+
+<span class="${maxUv>=6?'text-red-600':'text-gray-600'}">
+${maxUv.toFixed(1)}
+</span>
+
+<span class="${colorClass}">
+${status}
+</span>
+
+<span class="text-gray-400 font-medium">
+${icon} ${weatherDesc}
+</span>
+
+</div>
+`;
+
+rowWrapper.appendChild(row);
+
+weeklyList.appendChild(rowWrapper);
 
 }
 
 lucide.createIcons();
+
+}
+
+async function fetchLocationName(lat,lon){
+
+try{
+
+const res=await fetch(
+`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
+);
+
+const data=await res.json();
+
+const addr=data.address;
+
+const name=
+addr.city||
+addr.province||
+addr.town||
+addr.county||
+"내 위치";
+
+const sub=
+addr.suburb||
+addr.borough||
+addr.village||
+"";
+
+document.getElementById("locationName").innerText=
+`${name} ${sub}`.trim();
+
+}catch(e){
+
+document.getElementById("locationName").innerText=
+"내 위치";
+
+}
 
 }
 
@@ -479,6 +677,7 @@ const endX=(val<6)?x-stepX/2:x;
 ctx.fillRect(startX,padYTop,endX-startX,chartH);
 
 }
+
 });
 
 ctx.beginPath();
@@ -502,6 +701,7 @@ ctx.moveTo(x,y);
 ctx.lineTo(x,y);
 
 }
+
 });
 
 ctx.stroke();
@@ -583,7 +783,11 @@ ctx.fillText(val.toFixed(1),x,y-10);
 
 ctx.font="10px Inter";
 
-ctx.fillText((i+9).toString(),x,h-padYBottom+15);
+ctx.fillText(
+(i+9).toString(),
+x,
+h-padYBottom+15
+);
 
 ctx.font="11px Inter";
 
