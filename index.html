@@ -34,7 +34,7 @@
 </head>
 <body class="p-2 md:p-3 max-w-2xl mx-auto pb-16">
 
-    <!-- 현재 정보 카드 -->
+    <!-- Current Information Card -->
     <div class="card p-7 mb-4 relative">
         <div class="flex items-center justify-between mb-8">
             <div class="flex flex-col">
@@ -73,7 +73,7 @@
         </div>
     </div>
 
-    <!-- 오늘 골든타임 카드 -->
+    <!-- Golden Time Card -->
     <div id="goldenTimeCard" class="card p-7 mb-4 bg-gradient-to-br from-orange-500 to-[#FF8A00] text-white border-none shadow-orange-200">
         <div class="flex items-center gap-2 mb-3 opacity-90">
             <div class="p-1.5 bg-white/20 rounded-lg">
@@ -84,7 +84,7 @@
         <div id="goldenTime" class="text-5xl font-black tracking-tighter">-- ~ --</div>
     </div>
 
-    <!-- 메인 타임라인 -->
+    <!-- Main Timeline -->
     <div class="card p-7 mb-4">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-slate-800 font-black text-xl flex items-center gap-2.5 tracking-tight">
@@ -103,7 +103,7 @@
         </div>
     </div>
 
-    <!-- 주간 예보 -->
+    <!-- Weekly Forecast -->
     <div class="card p-7 mb-4">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-slate-800 font-black text-xl flex items-center gap-2.5 tracking-tight">
@@ -152,8 +152,8 @@
                 updateUI(data.current_weather);
                 renderWeekly();
                 const nowH = new Date().getHours();
-                const startIdx = Math.max(0, nowH - 4); 
-                const endIdx = startIdx + 28; 
+                const startIdx = Math.max(0, nowH - 3); 
+                const endIdx = startIdx + 24; 
                 drawScrollableChart("uvChart", uvData.slice(startIdx, endIdx), tempData.slice(startIdx, endIdx), hourlyWeather.slice(startIdx, endIdx), startIdx, true);
                 fetchLocationName(currentLat, currentLon);
             } catch (e) {
@@ -201,10 +201,12 @@
             const ctx = canvas.getContext("2d");
             const wrapper = canvas.parentElement;
             const dpr = window.devicePixelRatio || 1;
+            
             const step = 45; 
-            const px = 80; 
-            const totalWidth = step * uvs.length + (px * 2);
+            const px = 24; 
+            const totalWidth = (uvs.length - 1) * step + (px * 2);
             const h = 210;
+            
             canvas.style.width = totalWidth + "px";
             canvas.width = totalWidth * dpr;
             canvas.height = h * dpr;
@@ -226,17 +228,17 @@
                 if (isGolden) {
                     const grad = ctx.createLinearGradient(0, 5, 0, h);
                     grad.addColorStop(0, 'rgba(239, 68, 68, 0)');
-                    grad.addColorStop(0.7, 'rgba(239, 68, 68, 0.35)'); 
-                    grad.addColorStop(1, 'rgba(239, 68, 68, 0.05)'); 
+                    grad.addColorStop(0.7, 'rgba(239, 68, 68, 0.3)'); 
+                    grad.addColorStop(1, 'rgba(239, 68, 68, 0.02)'); 
                     ctx.fillStyle = grad;
-                    ctx.fillRect(x - step/2, 5, step, h);
+                    ctx.fillRect(x - step/2, 5, step, h - 30);
                 }
             });
 
             const tMin = Math.min(...temps), tMax = Math.max(...temps), tRange = (tMax - tMin) || 5;
             const getTempY = (t) => 85 - ((t - tMin) / tRange) * 30;
             ctx.beginPath();
-            ctx.strokeStyle = 'rgba(96, 165, 250, 0.35)'; ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(96, 165, 250, 0.3)'; ctx.lineWidth = 1.5;
             temps.forEach((t, i) => {
                 const x = px + i * step; 
                 if (i === 0) ctx.moveTo(x, getTempY(t)); else ctx.lineTo(x, getTempY(t));
@@ -275,7 +277,6 @@
                 ctx.font = 'bold 11px Inter';
                 ctx.fillText(uv.toFixed(1), x, uvY - 12);
                 
-                // 시간 숫자 스타일링: 골든타임 시 빨간색(#EF4444)으로 변경
                 if (isGolden) {
                     ctx.fillStyle = '#EF4444'; 
                     ctx.font = '600 10px Inter'; 
@@ -289,18 +290,26 @@
                 ctx.fillText(hour, x, h - 10);
             });
 
+            // Auto-scroll logic based on context (Today vs Future)
             requestAnimationFrame(() => {
                 let targetIdx = 0;
                 let scrollPos = 0;
+                
                 if (isToday) {
+                    // Current hour focus for today
                     targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
                     if(targetIdx === -1) targetIdx = 0;
-                    scrollPos = (targetIdx * step) + px - (step * 2); 
+                    scrollPos = (targetIdx * step) + px - (step * 1.5);
                 } else {
+                    // Maximum UV (Golden Time Peak) focus for weekly list
                     let maxVal = -1;
-                    uvs.forEach((v, idx) => { if(v > maxVal) { maxVal = v; targetIdx = idx; } });
+                    uvs.forEach((v, idx) => {
+                        if(v > maxVal) { maxVal = v; targetIdx = idx; }
+                    });
+                    // Center the peak value in the screen
                     scrollPos = (targetIdx * step) + px - (wrapper.offsetWidth / 2);
                 }
+                
                 wrapper.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
             });
         }
@@ -342,13 +351,19 @@
             const content = document.getElementById(`content-${i}`);
             const arrow = document.getElementById(`arrow-${i}`);
             const isOpen = content.classList.contains('open');
+            
+            // Close other items
             document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open'));
             document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
+            
             if (!isOpen) {
                 content.classList.add('open'); 
                 arrow.classList.add('rotate-180');
+                
+                // Drawing chart and handling auto-scroll
                 setTimeout(() => {
                     const startIdx = i * 24;
+                    // Pass isToday as false to trigger "Peak Centering" logic
                     drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, false);
                 }, 100);
             }
