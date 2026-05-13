@@ -38,20 +38,20 @@
     <div class="card p-7 mb-4 relative">
         <div class="flex items-center justify-between mb-8">
             <div class="flex flex-col">
-                <span class="text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-2">Current UV Index</span>
+                <span class="text-[11px] text-gray-400 font-normal uppercase tracking-[0.2em] mb-2">Current UV Index</span>
                 <div class="flex items-baseline gap-3">
                     <span id="uvValue" class="text-8xl font-black text-[#FF8A00] tracking-tighter leading-none">--</span>
-                    <span id="uvBadge" class="bg-gray-100 text-gray-400 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4 transition-all duration-500">Wait</span>
+                    <span id="uvBadge" class="bg-gray-100 text-gray-400 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider relative -top-4 transition-all duration-500">Wait</span>
                 </div>
             </div>
             <div class="flex flex-col items-end">
-                <span id="currentWeatherDesc" class="text-sm font-bold text-gray-400 mb-1">--</span>
+                <span id="currentWeatherDesc" class="text-sm font-normal text-gray-400 mb-1">--</span>
                 <span id="currentTemp" class="text-5xl font-black text-gray-800 leading-none tracking-tight">--°</span>
             </div>
         </div>
         
         <div class="bg-slate-50 rounded-2xl p-3.5 mb-6 border border-slate-100/50">
-            <p id="uvDesc" class="text-slate-600 text-[13px] font-semibold leading-relaxed break-keep">
+            <p id="uvDesc" class="text-slate-600 text-[13px] font-normal leading-relaxed break-keep">
                 위치 정보를 확인하고 있습니다...
             </p>
         </div>
@@ -60,11 +60,11 @@
             <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1.5 bg-slate-100/50 px-3 py-2 rounded-full border border-slate-200/50">
                     <i data-lucide="map-pin" class="w-3.5 h-3.5 text-blue-500"></i>
-                    <span id="locationName" class="text-[11px] font-bold text-slate-600 truncate max-w-[120px]">위치 찾는 중...</span>
+                    <span id="locationName" class="text-[11px] font-medium text-slate-600 truncate max-w-[120px]">위치 찾는 중...</span>
                 </div>
                 <div class="flex items-center gap-1.5 bg-slate-100/50 px-3 py-2 rounded-full border border-slate-200/50">
                     <i data-lucide="clock" class="w-3.5 h-3.5 text-orange-400"></i>
-                    <span id="lastUpdate" class="text-[11px] font-bold text-slate-600">--:--</span>
+                    <span id="lastUpdate" class="text-[11px] font-medium text-slate-600">--:--</span>
                 </div>
             </div>
             <button id="updateBtn" onclick="initLocation()" class="btn-update text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 hover:brightness-110 shadow-lg shrink-0">
@@ -79,18 +79,18 @@
             <div class="p-1.5 bg-white/20 rounded-lg">
                 <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
             </div>
-            <h2 class="font-bold text-xs uppercase tracking-widest">Today's Golden Time</h2>
+            <h2 class="font-normal text-xs uppercase tracking-widest">Today's Golden Time</h2>
         </div>
         <div id="goldenTime" class="text-5xl font-black tracking-tighter">-- ~ --</div>
     </div>
 
-    <!-- Main Chart Card (Title Removed, Legend moved to Bottom) -->
+    <!-- Main Chart Card -->
     <div class="card p-7 mb-4">
         <div id="mainChartWrapper" class="scroll-chart-wrapper no-scrollbar mb-4">
             <canvas id="uvChart"></canvas>
         </div>
         
-        <div class="flex gap-4 pt-2 no-scrollbar text-[10px] font-black text-slate-400 uppercase tracking-widest border-t border-slate-50">
+        <div class="flex gap-4 pt-2 no-scrollbar text-[10px] font-normal text-slate-400 uppercase tracking-widest border-t border-slate-50">
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-[#FF8A00]"></span> <span>UV Index</span></div>
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span> <span>Temp</span></div>
         </div>
@@ -103,7 +103,7 @@
                 <i data-lucide="calendar-days" class="w-6 h-6 text-blue-500"></i>
                 주간 태닝 예보
             </h2>
-            <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest">7 Days</span>
+            <span class="text-[10px] font-normal text-slate-300 uppercase tracking-widest">7 Days</span>
         </div>
         <div id="weeklyList" class="space-y-1">
             <div class="flex justify-center py-12"><div class="w-8 h-8 border-[4px] border-orange-100 border-t-orange-500 rounded-full animate-spin"></div></div>
@@ -177,13 +177,13 @@
             const badge = document.getElementById("uvBadge");
             const desc = document.getElementById("uvDesc");
             if (uv >= 8) {
-                badge.innerText = "위험"; badge.className = "bg-red-500 text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4";
+                badge.innerText = "위험"; badge.className = "bg-red-500 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider relative -top-4";
                 desc.innerText = "자외선이 매우 강합니다. 노출을 자제하세요.";
             } else if (uv >= 6) {
-                badge.innerText = "최적"; badge.className = "bg-[#FF8A00] text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4";
+                badge.innerText = "최적"; badge.className = "bg-[#FF8A00] text-white px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider relative -top-4";
                 desc.innerText = "태닝 효율이 최상인 골든타임입니다!";
             } else {
-                badge.innerText = "낮음"; badge.className = "bg-gray-400 text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4";
+                badge.innerText = "낮음"; badge.className = "bg-gray-400 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider relative -top-4";
                 desc.innerText = "자외선 지수가 낮습니다. 태닝 효율이 떨어집니다.";
             }
         }
@@ -240,7 +240,7 @@
             temps.forEach((t, i) => {
                 const x = px + i * step;
                 ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
-                ctx.font = '700 9px Inter'; ctx.textAlign = 'center';
+                ctx.font = '400 9px Inter'; ctx.textAlign = 'center';
                 ctx.fillText(Math.round(t) + "°", x, getTempY(t) - 8);
             });
 
@@ -267,18 +267,18 @@
                 const uvY = 170 - (uv * 9);
                 ctx.fillStyle = badW ? '#CBD5E1' : (uv >= 6 ? '#EF4444' : '#FF8A00');
                 ctx.beginPath(); ctx.arc(x, uvY, 4.5, 0, Math.PI * 2); ctx.fill();
-                ctx.font = 'bold 11px Inter';
+                ctx.font = '700 11px Inter';
                 ctx.fillText(uv.toFixed(1), x, uvY - 12);
                 
                 if (isGolden) {
                     ctx.fillStyle = '#EF4444'; 
-                    ctx.font = '600 10px Inter'; 
+                    ctx.font = '400 10px Inter'; 
                 } else if (isRealNow) {
                     ctx.fillStyle = '#FF8A00';
-                    ctx.font = 'bold 13px Inter'; 
+                    ctx.font = '700 13px Inter'; 
                 } else {
                     ctx.fillStyle = '#94A3B8';
-                    ctx.font = '600 10px Inter';
+                    ctx.font = '400 10px Inter';
                 }
                 ctx.fillText(hour, x, h - 10);
             });
@@ -286,7 +286,6 @@
             requestAnimationFrame(() => {
                 let targetIdx = 0;
                 let scrollPos = 0;
-                
                 if (isToday) {
                     targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
                     if(targetIdx === -1) targetIdx = 0;
@@ -298,7 +297,6 @@
                     });
                     scrollPos = (targetIdx * step) + px - (wrapper.offsetWidth / 2);
                 }
-                
                 wrapper.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
             });
         }
@@ -317,7 +315,7 @@
                 row.innerHTML = `
                     <div onclick="toggleDay(${i})" class="flex items-center justify-between py-5 cursor-pointer active:bg-slate-50 px-3 rounded-2xl transition-all group ${badW?'opacity-60':''}">
                         <div class="flex items-center gap-4">
-                            <span class="w-9 font-black text-xs ${i===0?'text-blue-500':'text-slate-400'}">${i===0?'오늘':dayNames[date.getDay()]}</span>
+                            <span class="w-9 font-normal text-xs ${i===0?'text-blue-500 font-bold':'text-slate-400'}">${i===0?'오늘':dayNames[date.getDay()]}</span>
                             <span class="text-2xl">${getWeatherEmoji(wCode)}</span>
                         </div>
                         <div class="flex-1 mx-5">
@@ -326,7 +324,7 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="text-[13px] font-black ${isOptimal?'text-orange-500':'text-slate-400'}">${maxUv.toFixed(1)}</span>
+                            <span class="text-[13px] font-bold ${isOptimal?'text-orange-500':'text-slate-400'}">${maxUv.toFixed(1)}</span>
                             <i data-lucide="chevron-down" id="arrow-${i}" class="w-4 h-4 text-slate-300 transition-transform duration-300"></i>
                         </div>
                     </div>
@@ -340,14 +338,11 @@
             const content = document.getElementById(`content-${i}`);
             const arrow = document.getElementById(`arrow-${i}`);
             const isOpen = content.classList.contains('open');
-            
             document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open'));
             document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
-            
             if (!isOpen) {
                 content.classList.add('open'); 
                 arrow.classList.add('rotate-180');
-                
                 setTimeout(() => {
                     const startIdx = i * 24;
                     drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, false);
