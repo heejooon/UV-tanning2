@@ -152,7 +152,16 @@
                 updateUI(data.current_weather);
                 
                 const nowH = new Date().getHours();
-                drawScrollableChart("uvChart", uvData.slice(0, 168), tempData.slice(0, 168), hourlyWeather.slice(0, 168), 0, true);
+                const startIdx = Math.max(0, nowH - 3);
+                const endIdx = startIdx + 28; // -3 ~ +24 = 28개 데이터 포인트
+                
+                drawScrollableChart("uvChart", 
+                    uvData.slice(startIdx, endIdx), 
+                    tempData.slice(startIdx, endIdx), 
+                    hourlyWeather.slice(startIdx, endIdx), 
+                    startIdx, 
+                    true
+                );
                 fetchLocationName(currentLat, currentLon);
             } catch (e) {
                 console.error(e);
@@ -355,7 +364,8 @@
                 const x = px + i * step;
                 const uvY = 160 - (uv * 8);
                 const tY = getTempY(temps[i]);
-                const hour = (startTime + i) % 24;
+                const absoluteHourIndex = startTime + i;
+                const hour = absoluteHourIndex % 24;
                 const badW = isBadWeather(codes[i]);
 
                 // Weather Emoji
@@ -376,9 +386,10 @@
                 ctx.font = 'bold 9px Inter';
                 ctx.fillText(uv.toFixed(1), x, uvY - 8);
 
+                const isCurrent = isToday && absoluteHourIndex === nowH;
+                
                 // Hour (Number only)
-                const isCurrent = hour === nowH && isToday;
-                ctx.fillStyle = isCurrent ? '#FF8A00' : (isOptimal ? '#EF4444' : '#94A3B8');
+                ctx.fillStyle = isCurrent ? '#FF8A00' : (uv >= 6 && !badW ? '#EF4444' : '#94A3B8');
                 ctx.font = isCurrent ? 'bold 11px Inter' : 'bold 10px Inter';
                 ctx.fillText(hour, x, h - 10);
 
@@ -393,7 +404,8 @@
 
             // Auto-scroll logic
             if (isToday && id === "uvChart") {
-                const scrollPos = px + (nowH - 1) * step - 15;
+                const currentRelIdx = uvs.findIndex((_, i) => (startTime + i) === nowH);
+                const scrollPos = px + (currentRelIdx * step) - (wrapper.clientWidth / 4);
                 wrapper.scrollLeft = scrollPos;
             } else if (id !== "uvChart") {
                 let maxVal = -1, maxIdx = 0;
