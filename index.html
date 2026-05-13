@@ -38,7 +38,7 @@
 </head>
 <body class="p-2 md:p-3 max-w-2xl mx-auto pb-16">
 
-    <!-- Current Information Card (Tightened spacing) -->
+    <!-- Current Information Card -->
     <div class="card p-7 py-5 mb-4 relative">
         <div class="flex items-center justify-between mb-3">
             <div class="flex flex-col">
@@ -54,7 +54,6 @@
             </div>
         </div>
         
-        <!-- Spacing adjusted from mb-5 to mb-3 -->
         <div class="bg-slate-50 rounded-2xl px-3.5 py-2 mb-3 border border-slate-100/50">
             <p id="uvDesc" class="text-slate-600 text-[13px] font-normal leading-relaxed break-keep">
                 위치 정보를 확인하고 있습니다...
@@ -117,6 +116,7 @@
         <div class="flex gap-4 pt-2 no-scrollbar text-[10px] font-normal text-slate-400 uppercase tracking-widest border-t border-slate-50">
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-[#FF8A00]"></span> <span>UV Index</span></div>
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span> <span>Temp</span></div>
+            <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-1 rounded-full bg-red-400"></span> <span>Golden Time</span></div>
         </div>
     </div>
 
@@ -243,6 +243,7 @@
             const nowH = new Date().getHours();
             ctx.clearRect(0, 0, totalWidth, h);
 
+            // Creative Redesign of Golden Time Areas
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
                 const isRealNow = isToday && (startTime + i) === nowH;
@@ -255,12 +256,22 @@
                 ctx.setLineDash([]);
 
                 if (isGolden) {
-                    const grad = ctx.createLinearGradient(0, 5, 0, h);
-                    grad.addColorStop(0, 'rgba(239, 68, 68, 0)');
-                    grad.addColorStop(0.7, 'rgba(239, 68, 68, 0.3)'); 
-                    grad.addColorStop(1, 'rgba(239, 68, 68, 0.02)'); 
+                    // Modern Gradient Fill
+                    const grad = ctx.createLinearGradient(0, 0, 0, h - 30);
+                    grad.addColorStop(0, 'rgba(239, 68, 68, 0.08)');
+                    grad.addColorStop(0.5, 'rgba(239, 68, 68, 0.03)');
+                    grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
                     ctx.fillStyle = grad;
-                    ctx.fillRect(x - step/2, 5, step, h - 30);
+                    ctx.fillRect(x - step/2, 5, step, h - 35);
+
+                    // Top Neon Accents (Line + Glow)
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+                    ctx.lineWidth = 2.5;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(x - step/2 + 4, 5);
+                    ctx.lineTo(x + step/2 - 4, 5);
+                    ctx.stroke();
                 }
             });
 
@@ -301,8 +312,21 @@
                 ctx.fillText(getWeatherEmoji(codes[i]), x, 25);
                 
                 const uvY = 170 - (uv * 9);
-                ctx.fillStyle = badW ? '#CBD5E1' : (uv >= 6 ? '#EF4444' : '#FF8A00');
-                ctx.beginPath(); ctx.arc(x, uvY, 4.5, 0, Math.PI * 2); ctx.fill();
+                
+                // Point styling
+                if (isGolden) {
+                   ctx.fillStyle = '#EF4444';
+                   // Add a subtle outer glow for golden points
+                   ctx.shadowBlur = 8;
+                   ctx.shadowColor = 'rgba(239, 68, 68, 0.5)';
+                } else {
+                   ctx.fillStyle = badW ? '#CBD5E1' : '#FF8A00';
+                   ctx.shadowBlur = 0;
+                }
+                
+                ctx.beginPath(); ctx.arc(x, uvY, isGolden ? 5 : 4.5, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0; // reset
+                
                 ctx.font = '700 11px Inter';
                 ctx.fillText(uv.toFixed(1), x, uvY - 12);
                 
@@ -398,5 +422,3 @@
     </script>
 </body>
 </html>
-
-```
