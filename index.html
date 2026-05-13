@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UV & Weather AI Tracker</title>
+    <title>UV & Weather Tracker v2</title>
     <meta name="theme-color" content="#FF8A00"/>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -26,9 +26,10 @@
         }
         canvas { display: block; height: 200px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
+        .tanning-impossible { filter: grayscale(1); opacity: 0.6; }
     </style>
 </head>
-<body class="p-2 md:p-8 max-w-2xl mx-auto pb-16">
+<body class="p-2 md:p-4 max-w-2xl mx-auto pb-16">
 
     <div class="card p-7 mb-5 relative">
         <div class="flex items-center justify-between mb-8">
@@ -47,7 +48,7 @@
         
         <div class="bg-slate-50 rounded-2xl p-3.5 mb-6 border border-slate-100/50">
             <p id="uvDesc" class="text-slate-600 text-[13px] font-semibold leading-relaxed break-keep" style="word-break: keep-all;">
-                현재 위치의 기상 정보를 분석하고 있습니다...
+                현재 위치의 기상 정보를 분석하여 태닝 적합도를 계산 중입니다...
             </p>
         </div>
 
@@ -68,12 +69,12 @@
         </div>
     </div>
 
-    <div class="card p-7 mb-5 bg-gradient-to-br from-orange-500 to-[#FF8A00] text-white border-none shadow-orange-200">
+    <div id="goldenTimeCard" class="card p-7 mb-5 bg-gradient-to-br from-orange-500 to-[#FF8A00] text-white border-none shadow-orange-200 transition-all duration-500">
         <div class="flex items-center gap-2 mb-3 opacity-90">
             <div class="p-1.5 bg-white/20 rounded-lg">
                 <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
             </div>
-            <h2 class="font-bold text-xs uppercase tracking-widest">Today's Golden Time</h2>
+            <h2 class="font-bold text-xs uppercase tracking-widest">Today's Golden Time (No Rain)</h2>
         </div>
         <div id="goldenTime" class="text-5xl font-black tracking-tighter">-- ~ --</div>
     </div>
@@ -82,18 +83,14 @@
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-slate-800 font-black text-xl flex items-center gap-2.5 tracking-tight">
                 <i data-lucide="bar-chart-3" class="w-6 h-6 text-orange-500"></i>
-                UV 타임라인
+                태닝 타임라인
             </h2>
-            <div class="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                <i data-lucide="move-horizontal" class="w-3 h-3 text-slate-400"></i>
-                <span class="text-[9px] font-bold text-slate-400 uppercase">Slide</span>
-            </div>
         </div>
         
         <div class="flex gap-4 mb-6 overflow-x-auto pb-1 no-scrollbar">
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-[#FF8A00]"></span> <span class="text-[10px] font-black text-slate-400 uppercase">UV Index</span></div>
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span> <span class="text-[10px] font-black text-slate-400 uppercase">Temp</span></div>
-            <div class="flex items-center gap-1.5 shrink-0"><span class="w-4 h-2 rounded bg-red-100 border border-red-200"></span> <span class="text-[10px] font-black text-slate-400 uppercase">Golden</span></div>
+            <div class="flex items-center gap-1.5 shrink-0"><span class="w-4 h-2 rounded bg-red-100 border border-red-200"></span> <span class="text-[10px] font-black text-slate-400 uppercase">Tanning Best Time</span></div>
         </div>
 
         <div id="mainChartWrapper" class="scroll-chart-wrapper no-scrollbar">
@@ -119,10 +116,14 @@
         let currentLat = 37.5038, currentLon = 126.7535;
 
         const weatherEmoji = { 0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️", 51: "🌦️", 53: "🌦️", 55: "🌦️", 61: "🌧️", 63: "🌧️", 65: "🌧️", 80: "🌦️", 81: "🌧️", 82: "🌧️", 95: "⚡", 96: "⛈️", 99: "⛈️" };
-        const weatherMap = { 0: "맑음", 1: "대체로 맑음", 2: "구름 조금", 3: "흐림", 45: "안개", 51: "약한 이슬비", 61: "약한 비", 80: "소나기", 95: "뇌우" };
+        const weatherMap = { 0: "맑음", 1: "대체로 맑음", 2: "구름 조금", 3: "흐림", 45: "안개", 51: "이슬비", 61: "비", 80: "소나기", 95: "뇌우" };
 
         function getWeatherEmoji(code) { return weatherEmoji[code] || "🌡️"; }
         function getWeatherDesc(code) { return weatherMap[code] || "보통"; }
+        function isBadWeather(code) {
+            // 강수 코드는 51번 이상임
+            return code >= 51;
+        }
 
         async function initLocation() {
             const btn = document.getElementById("updateBtn");
@@ -151,10 +152,7 @@
                 updateUI(data.current_weather);
                 
                 const nowH = new Date().getHours();
-                const startIdx = Math.max(0, nowH - 3);
-                const endIdx = Math.min(uvData.length, nowH + 25);
-                
-                drawScrollableChart("uvChart", uvData.slice(startIdx, endIdx), tempData.slice(startIdx, endIdx), hourlyWeather.slice(startIdx, endIdx), startIdx, true);
+                drawScrollableChart("uvChart", uvData.slice(0, 168), tempData.slice(0, 168), hourlyWeather.slice(0, 168), 0, true);
                 fetchLocationName(currentLat, currentLon);
             } catch (e) {
                 console.error(e);
@@ -170,27 +168,35 @@
             const now = new Date();
             const hour = now.getHours();
             const uv = uvData[hour] || 0;
+            const code = hourlyWeather[hour] || 0;
+            const badWeather = isBadWeather(code);
 
             document.getElementById("uvValue").innerText = uv.toFixed(1);
             const badge = document.getElementById("uvBadge");
             const desc = document.getElementById("uvDesc");
 
-            if (uv >= 8) { 
-                badge.innerText = "위험"; 
-                badge.className = "bg-red-500 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
-                desc.innerText = "자외선이 매우 강력합니다. 태닝보다 피부 보호가 우선입니다."; 
-            } else if (uv >= 6) { 
-                badge.innerText = "최적"; 
-                badge.className = "bg-orange-500 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
-                desc.innerText = "현재 태닝 효율이 최고조입니다! 골든타임을 활용하세요."; 
-            } else if (uv >= 3) { 
-                badge.innerText = "보통"; 
-                badge.className = "bg-amber-400 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
-                desc.innerText = "적당한 자외선입니다. 가벼운 야외 활동을 추천합니다."; 
-            } else { 
-                badge.innerText = "낮음"; 
-                badge.className = "bg-slate-400 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
-                desc.innerText = "현재 자외선이 약합니다. 태닝 효율이 다소 떨어집니다."; 
+            if (badWeather) {
+                badge.innerText = "불가";
+                badge.className = "bg-slate-700 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all";
+                desc.innerText = `현재 자외선은 ${uv.toFixed(1)}이지만, 비 예보가 있어 태닝이 불가능합니다.`;
+            } else {
+                if (uv >= 8) { 
+                    badge.innerText = "위험"; 
+                    badge.className = "bg-red-500 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
+                    desc.innerText = "자외선이 매우 강력합니다. 태닝보다 피부 보호가 우선입니다."; 
+                } else if (uv >= 6) { 
+                    badge.innerText = "최적"; 
+                    badge.className = "bg-orange-500 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
+                    desc.innerText = "현재 날씨가 맑고 자외선이 적당하여 태닝 효율이 최고조입니다!"; 
+                } else if (uv >= 3) { 
+                    badge.innerText = "보통"; 
+                    badge.className = "bg-amber-400 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
+                    desc.innerText = "적당한 자외선입니다. 가벼운 야외 활동을 추천합니다."; 
+                } else { 
+                    badge.innerText = "낮음"; 
+                    badge.className = "bg-slate-400 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
+                    desc.innerText = "현재 자외선이 약합니다. 태닝 효율이 다소 떨어집니다."; 
+                }
             }
 
             if (current) {
@@ -199,11 +205,25 @@
             }
             document.getElementById("lastUpdate").innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
 
+            // Golden Time logic (UV >= 6 AND NO RAIN)
             let start = -1, end = -1;
             for (let i = 0; i < 24; i++) {
-                if (uvData[i] >= 6) { if (start === -1) start = i; end = i; }
+                if (uvData[i] >= 6 && !isBadWeather(hourlyWeather[i])) { 
+                    if (start === -1) start = i; 
+                    end = i; 
+                }
             }
-            document.getElementById("goldenTime").innerText = start !== -1 ? `${start}:00 ~ ${end + 1}:00` : "오늘 없음";
+            
+            const gtText = start !== -1 ? `${start}:00 ~ ${end + 1}:00` : "태닝 불가";
+            document.getElementById("goldenTime").innerText = gtText;
+            
+            const gtCard = document.getElementById("goldenTimeCard");
+            if (start === -1) {
+                gtCard.className = "card p-7 mb-5 bg-slate-400 text-white border-none shadow-none grayscale transition-all duration-500";
+            } else {
+                gtCard.className = "card p-7 mb-5 bg-gradient-to-br from-orange-500 to-[#FF8A00] text-white border-none shadow-orange-200 transition-all duration-500";
+            }
+
             renderWeekly();
         }
 
@@ -211,25 +231,31 @@
             const list = document.getElementById("weeklyList");
             list.innerHTML = "";
             const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+            
             for (let i = 0; i < 7; i++) {
                 const date = new Date(); date.setDate(date.getDate() + i);
                 const maxUv = weeklyData.uv_index_max[i];
-                const emoji = getWeatherEmoji(weeklyData.weather_code[i]);
-                const isOptimal = maxUv >= 6;
+                const wCode = weeklyData.weather_code[i];
+                const badW = isBadWeather(wCode);
+                
+                const isOptimal = maxUv >= 6 && !badW;
                 const row = document.createElement("div");
                 row.className = "border-b border-slate-50 last:border-0";
                 row.innerHTML = `
-                    <div onclick="toggleDay(${i})" class="flex items-center justify-between py-5 cursor-pointer active:bg-slate-50 px-3 rounded-2xl transition-all group">
+                    <div onclick="toggleDay(${i})" class="flex items-center justify-between py-5 cursor-pointer active:bg-slate-50 px-3 rounded-2xl transition-all group ${badW?'opacity-70':''}">
                         <div class="flex items-center gap-4">
                             <span class="w-9 font-black text-xs ${i===0?'text-blue-500':'text-slate-400'}">${i===0?'오늘':dayNames[date.getDay()]}</span>
-                            <span class="text-2xl">${emoji}</span>
+                            <span class="text-2xl">${getWeatherEmoji(wCode)}</span>
                         </div>
                         <div class="flex-1 mx-5">
                             <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                                <div class="h-full ${isOptimal?'bg-orange-500':'bg-slate-300'}" style="width: ${Math.min(maxUv*10, 100)}%"></div>
+                                <div class="h-full ${badW?'bg-slate-300':(isOptimal?'bg-orange-500':'bg-slate-300')}" style="width: ${Math.min(maxUv*10, 100)}%"></div>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3"><span class="text-[13px] font-black ${isOptimal?'text-orange-500':'text-slate-400'}">${maxUv.toFixed(1)}</span><i data-lucide="chevron-down" id="arrow-${i}" class="w-4 h-4 text-slate-300 transition-transform duration-300"></i></div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[13px] font-black ${badW?'text-slate-400':(isOptimal?'text-orange-500':'text-slate-400')}">${maxUv.toFixed(1)}</span>
+                            <i data-lucide="chevron-down" id="arrow-${i}" class="w-4 h-4 text-slate-300 transition-transform duration-300"></i>
+                        </div>
                     </div>
                     <div id="content-${i}" class="chart-container"><div class="scroll-chart-wrapper no-scrollbar"><canvas id="chart-${i}"></canvas></div></div>`;
                 list.appendChild(row);
@@ -260,10 +286,11 @@
             const wrapper = canvas.parentElement;
             const dpr = window.devicePixelRatio || 1;
             
-            const tempMax = Math.max(...temps);
-            const tempMin = Math.min(...temps);
-            const tempRange = (tempMax - tempMin) || 5; 
-            const getTempY = (t) => 85 - ((t - tempMin) / tempRange) * 30;
+            // Dynamic Temp Scale (Y: 55~85)
+            const tMin = Math.min(...temps);
+            const tMax = Math.max(...temps);
+            const tRange = (tMax - tMin) || 5;
+            const getTempY = (t) => 85 - ((t - tMin) / tRange) * 30;
 
             const unitWidth = 48; 
             const totalWidth = unitWidth * uvs.length;
@@ -280,9 +307,10 @@
 
             ctx.clearRect(0, 0, totalWidth, h);
 
-            // Background Golden Gradient
+            // 1. Golden Time Area (UV >= 6 AND NO RAIN)
             uvs.forEach((uv, i) => {
-                if (uv >= 6) {
+                const badW = isBadWeather(codes[i]);
+                if (uv >= 6 && !badW) {
                     const grad = ctx.createLinearGradient(0, 0, 0, h);
                     grad.addColorStop(0, 'rgba(239, 68, 68, 0.08)');
                     grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
@@ -291,16 +319,16 @@
                 }
             });
 
-            // Grid lines
+            // 2. Guidelines
             uvs.forEach((_, i) => {
                 const x = px + i * step;
                 ctx.setLineDash([3, 3]);
                 ctx.strokeStyle = 'rgba(0,0,0,0.04)';
-                ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, h - 30); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x, 40); ctx.lineTo(x, h - 30); ctx.stroke();
             });
             ctx.setLineDash([]);
 
-            // Temp Line
+            // 3. Temp Line (Blue)
             ctx.beginPath();
             ctx.strokeStyle = 'rgba(96, 165, 250, 0.7)'; 
             ctx.lineWidth = 2;
@@ -311,7 +339,7 @@
             });
             ctx.stroke();
 
-            // UV Line
+            // 4. UV Line (Orange)
             ctx.beginPath();
             ctx.strokeStyle = '#FF8A00';
             ctx.lineWidth = 3;
@@ -322,43 +350,50 @@
             });
             ctx.stroke();
 
-            // Icons & Labels
+            // 5. Data Points & Labels
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
                 const uvY = 160 - (uv * 8);
                 const tY = getTempY(temps[i]);
                 const hour = (startTime + i) % 24;
+                const badW = isBadWeather(codes[i]);
 
-                ctx.fillStyle = '#1E293B';
+                // Weather Emoji
+                ctx.fillStyle = badW ? '#64748B' : '#1E293B';
                 ctx.font = '16px Inter';
                 ctx.textAlign = 'center';
                 ctx.fillText(getWeatherEmoji(codes[i]), x, 25);
 
-                ctx.fillStyle = '#64748B';
-                ctx.font = 'bold 10px Inter';
+                // Temp Text
+                ctx.fillStyle = 'rgba(96, 165, 250, 1)';
+                ctx.font = 'bold 9px Inter';
                 ctx.fillText(Math.round(temps[i]) + '°', x, tY - 8);
 
-                ctx.fillStyle = uv >= 6 ? '#EF4444' : '#FF8A00';
-                ctx.beginPath(); ctx.arc(x, uvY, 3.5, 0, Math.PI * 2); ctx.fill();
+                // UV Value & Dot
+                const isOptimal = uv >= 6 && !badW;
+                ctx.fillStyle = isOptimal ? '#EF4444' : (badW ? '#94A3B8' : '#FF8A00');
+                ctx.beginPath(); ctx.arc(x, uvY, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.font = 'bold 9px Inter';
                 ctx.fillText(uv.toFixed(1), x, uvY - 8);
 
+                // Hour (Number only)
                 const isCurrent = hour === nowH && isToday;
-                ctx.fillStyle = isCurrent ? '#FF8A00' : (uv >= 6 ? '#EF4444' : '#94A3B8');
+                ctx.fillStyle = isCurrent ? '#FF8A00' : (isOptimal ? '#EF4444' : '#94A3B8');
                 ctx.font = isCurrent ? 'bold 11px Inter' : 'bold 10px Inter';
                 ctx.fillText(hour, x, h - 10);
 
+                // Current Indicator
                 if (isCurrent) {
-                    ctx.strokeStyle = 'rgba(255, 138, 0, 0.3)';
+                    ctx.strokeStyle = 'rgba(255, 138, 0, 0.4)';
                     ctx.setLineDash([2, 2]);
                     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
                     ctx.setLineDash([]);
                 }
             });
 
-            // Auto Scroll
+            // Auto-scroll logic
             if (isToday && id === "uvChart") {
-                const targetIdx = nowH - startTime;
-                const scrollPos = px + (targetIdx - 1) * step - 15;
+                const scrollPos = px + (nowH - 1) * step - 15;
                 wrapper.scrollLeft = scrollPos;
             } else if (id !== "uvChart") {
                 let maxVal = -1, maxIdx = 0;
