@@ -47,7 +47,7 @@
             </div>
         </div>
         
-        <div class="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100/50">
+        <div class="bg-slate-50 rounded-2xl p-3.5 mb-6 border border-slate-100/50">
             <p id="uvDesc" class="text-slate-600 text-[13px] font-semibold leading-relaxed break-keep" style="word-break: keep-all;">
                 현재 위치의 기상 정보를 분석하고 있습니다...
             </p>
@@ -261,7 +261,7 @@
                 arrow.classList.add('rotate-180');
                 setTimeout(() => {
                     const startIdx = i * 24;
-                    drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 25), tempData.slice(startIdx, startIdx + 25), hourlyWeather.slice(startIdx, startIdx + 25), 0, i === 0);
+                    drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, i === 0);
                 }, 100);
             }
         }
@@ -273,35 +273,107 @@
             const wrapper = canvas.parentElement;
             const dpr = window.devicePixelRatio || 1;
             
-            // 고정 너비를 사용하여 모바일에서 압축되는 현상 방지
             const unitWidth = 65; 
             const totalWidth = unitWidth * uvs.length;
+            const h = 200;
+            const px = 30; // 가로 여백
             
             canvas.style.width = totalWidth + "px";
             canvas.width = totalWidth * dpr;
-            canvas.height = 200 * dpr;
+            canvas.height = h * dpr;
             ctx.scale(dpr, dpr);
 
-            const h = 200, px = 30; // 좌우 여백을 조금 더 확보
-            const step = (totalWidth - px * 2) / (uvs.length - 1);
+            const step = unitWidth;
             const nowH = new Date().getHours();
 
             ctx.clearRect(0, 0, totalWidth, h);
 
-            // --- Y 축 레이어 설정 ---
-            // 스크롤 위치 제어: 현재 시간이 왼쪽에서 2번째 칸에 오도록 설정
+            uvs.forEach((uv, i) => {
+                if (uv >= 6) {
+                    const grad = ctx.createLinearGradient(0, 0, 0, h);
+                    grad.addColorStop(0, 'rgba(239, 68, 68, 0.08)');
+                    grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(px + i * step - step / 2, 0, step, h);
+                }
+            });
+
+            uvs.forEach((_, i) => {
+                const x = px + i * step;
+                ctx.setLineDash([3, 3]);
+                ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+                ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, h - 30); ctx.stroke();
+            });
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(96, 165, 250, 0.7)'; // 진한 파랑색
+            ctx.lineWidth = 2;
+            temps.forEach((t, i) => {
+                const x = px + i * step;
+                const y = 65 - (t * 0.5); // 온도 트랙 높이 조정
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#FF8A00';
+            ctx.lineWidth = 3;
+            uvs.forEach((uv, i) => {
+                const x = px + i * step;
+                const y = 160 - (uv * 8); // UV 트랙 높이 조정
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            uvs.forEach((uv, i) => {
+                const x = px + i * step;
+                const uvY = 160 - (uv * 8);
+                const tY = 65 - (temps[i] * 0.5);
+                const hour = (startTime + i) % 24;
+
+                // 1. 최상단 날씨 아이콘 축
+                ctx.fillStyle = '#1E293B';
+                ctx.font = '16px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(getWeatherEmoji(codes[i]), x, 25);
+
+                // 2. 온도 수치
+                ctx.fillStyle = '#64748B';
+                ctx.font = 'bold 10px Inter';
+                ctx.fillText(Math.round(temps[i]) + '°', x, 45);
+
+                // 3. UV 포인트 및 수치
+                ctx.fillStyle = uv >= 6 ? '#EF4444' : '#FF8A00';
+                ctx.beginPath(); ctx.arc(x, uvY, 3.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = uv >= 6 ? '#EF4444' : '#FF8A00';
+                ctx.font = 'bold 10px Inter';
+                ctx.fillText(uv.toFixed(1), x, uvY - 8);
+
+                // 4. 하단 시간 축 (숫자만)
+                const isCurrent = hour === nowH && isToday;
+                ctx.fillStyle = isCurrent ? '#FF8A00' : (uv >= 6 ? '#EF4444' : '#94A3B8');
+                ctx.font = isCurrent ? 'bold 11px Inter' : 'bold 10px Inter';
+                ctx.fillText(hour, x, h - 10);
+
+                // 현재 시간 강조 세로선
+                if (isCurrent) {
+                    ctx.strokeStyle = 'rgba(255, 138, 0, 0.3)';
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+
             if (isToday && id === "uvChart") {
-                // (현재 시간 좌표) - (한 칸 너비) - (여백)
-                const scrollPos = px + (nowH - startTime) * step - (unitWidth + 10);
+                // 현재 시간이 왼쪽에서 2번째 칸에 오도록 (현재시간X - unitWidth + 여백)
+                const scrollPos = (nowH - startTime) * step - step + px;
                 wrapper.scrollLeft = scrollPos;
-            } else {
-                let maxVal = -1;
-                let maxIdx = 0;
-                uvs.forEach((val, idx) => {
-                    if (val > maxVal) { maxVal = val; maxIdx = idx; }
-                });
-                const scrollPos = px + maxIdx * step - (wrapper.clientWidth / 2);
-                wrapper.scrollLeft = scrollPos;
+            } else if (id !== "uvChart") {
+                // 주간 예보의 경우 최고점 찾기
+                let maxVal = -1, maxIdx = 0;
+                uvs.forEach((val, idx) => { if (val > maxVal) { maxVal = val; maxIdx = idx; } });
+                wrapper.scrollLeft = maxIdx * step - (wrapper.clientWidth / 2) + px;
             }
         }
 
