@@ -30,6 +30,10 @@
         }
         canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
+        
+        .golden-card-bg {
+            background: linear-gradient(135deg, #FF8A00 0%, #E11D48 100%);
+        }
     </style>
 </head>
 <body class="p-2 md:p-3 max-w-2xl mx-auto pb-16">
@@ -73,15 +77,38 @@
         </div>
     </div>
 
-    <!-- Golden Time Card -->
-    <div id="goldenTimeCard" class="card p-7 mb-4 bg-gradient-to-br from-orange-500 to-[#FF8A00] text-white border-none shadow-orange-200">
-        <div class="flex items-center gap-2 mb-3 opacity-90">
-            <div class="p-1.5 bg-white/20 rounded-lg">
-                <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
-            </div>
-            <h2 class="font-normal text-xs uppercase tracking-widest">Today's Golden Time</h2>
+    <!-- Golden Time Card (Redesigned for Clarity) -->
+    <div id="goldenTimeCard" class="card p-6 mb-4 golden-card-bg text-white border-none">
+        <!-- Minimal Header -->
+        <div class="flex items-center gap-2 mb-6">
+            <div class="w-1.5 h-4 bg-white/40 rounded-full"></div>
+            <h2 class="text-[11px] font-semibold uppercase tracking-[0.2em] opacity-90">Today's Golden Time</h2>
         </div>
-        <div id="goldenTime" class="text-5xl font-black tracking-tighter">-- ~ --</div>
+
+        <!-- Main Stats Layout -->
+        <div class="flex items-end justify-between">
+            <!-- Left: Main Time Range -->
+            <div class="flex flex-col">
+                <div id="goldenTime" class="text-6xl font-black tracking-tighter leading-none italic">-- ~ --</div>
+                <div class="mt-3 flex items-center gap-2">
+                    <span class="px-2 py-0.5 bg-white/20 rounded text-[9px] font-bold tracking-widest uppercase">Best Time</span>
+                </div>
+            </div>
+            
+            <!-- Right: Peak Status -->
+            <div class="flex flex-col items-end">
+                <div class="flex flex-col items-end gap-1">
+                    <span class="text-[10px] font-medium uppercase tracking-widest opacity-70">Peak UV</span>
+                    <div class="flex items-center gap-2">
+                        <span id="peakUvValue" class="text-4xl font-black leading-none">--</span>
+                        <div class="flex flex-col items-start leading-tight">
+                            <span class="text-[9px] font-bold opacity-80">INDEX</span>
+                            <span id="peakTimeValue" class="text-[11px] font-medium opacity-90">--:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Main Chart Card -->
@@ -166,14 +193,26 @@
             document.getElementById("currentTemp").innerText = Math.round(current.temperature) + "°";
             document.getElementById("currentWeatherDesc").innerText = getWeatherDesc(current.weathercode);
             document.getElementById("lastUpdate").innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+            
             let start = -1, end = -1;
+            let peakVal = 0;
+            let peakTime = 0;
             for (let i = 0; i < 24; i++) {
-                if (uvData[i] >= 6 && !isBadWeather(hourlyWeather[i])) {
+                const currentUv = uvData[i] || 0;
+                if (currentUv > peakVal) {
+                    peakVal = currentUv;
+                    peakTime = i;
+                }
+                if (currentUv >= 6 && !isBadWeather(hourlyWeather[i])) {
                     if (start === -1) start = i;
                     end = i;
                 }
             }
+            
             document.getElementById("goldenTime").innerText = start !== -1 ? `${start} ~ ${end + 1}` : "오늘 없음";
+            document.getElementById("peakUvValue").innerText = peakVal.toFixed(1);
+            document.getElementById("peakTimeValue").innerText = `${peakTime}:00`;
+
             const badge = document.getElementById("uvBadge");
             const desc = document.getElementById("uvDesc");
             if (uv >= 8) {
