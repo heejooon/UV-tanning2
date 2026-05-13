@@ -398,8 +398,8 @@
 
             // 스크롤 위치 제어
             if (isToday && id === "uvChart") {
-                // 타임라인: 현재 시간 기준 센터링
-                const scrollPos = px + (nowH - startTime) * step - (viewportWidth / 2);
+                // 현재 시간의 X 좌표에서 1유닛 + 여백(30px)만큼 왼쪽으로 스크롤 위치를 잡습니다.
+                const scrollPos = px + (nowH - startTime) * step - (unitWidth + 30);
                 wrapper.scrollLeft = scrollPos;
             } else {
                 // 주간 예보: 자외선 최고점 기준 센터링
