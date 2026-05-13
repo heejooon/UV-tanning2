@@ -48,6 +48,7 @@
         </div>
         
         <div class="bg-slate-50 rounded-2xl p-5 mb-8 border border-slate-100/50">
+        <div class="bg-slate-50 rounded-2xl p-3.5 mb-6 border border-slate-100/50">
             <p id="uvDesc" class="text-slate-600 text-[13px] font-semibold leading-relaxed break-keep" style="word-break: keep-all;">
                 현재 위치의 기상 정보를 분석하고 있습니다...
             </p>
@@ -64,9 +65,8 @@
                     <span id="lastUpdate" class="text-[11px] font-bold text-slate-600">--:--</span>
                 </div>
             </div>
-            <button id="updateBtn" onclick="initLocation()" class="btn-update text-white px-5 py-3 rounded-2xl flex items-center gap-2 transition-all active:scale-95 hover:brightness-110 font-bold text-sm shrink-0 shadow-lg whitespace-nowrap">
-                <i id="updateIcon" data-lucide="refresh-cw" class="w-4 h-4"></i>
-                <span>업데이트</span>
+            <button id="updateBtn" onclick="initLocation()" class="btn-update text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 hover:brightness-110 shadow-lg shrink-0">
+                <i id="updateIcon" data-lucide="refresh-cw" class="w-5 h-5"></i>
             </button>
         </div>
     </div>
@@ -95,7 +95,7 @@
         
         <div class="flex gap-4 mb-6 overflow-x-auto pb-1 no-scrollbar">
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-[#FF8A00]"></span> <span class="text-[10px] font-black text-slate-400 uppercase">UV Index</span></div>
-            <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> <span class="text-[10px] font-black text-slate-400 uppercase">Temp</span></div>
+            <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span> <span class="text-[10px] font-black text-slate-400 uppercase">Temp</span></div>
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-4 h-2 rounded bg-red-100 border border-red-200"></span> <span class="text-[10px] font-black text-slate-400 uppercase">Golden</span></div>
         </div>
 
@@ -326,8 +326,8 @@
 
             // 3. 온도 추세 점선
             ctx.beginPath();
-            ctx.strokeStyle = "rgba(203, 213, 225, 0.4)";
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(96, 165, 250, 0.7)";
+            ctx.lineWidth = 1.5;
             ctx.setLineDash([2, 2]);
             const minT = Math.min(...temps), maxT = Math.max(...temps), tR = (maxT - minT) || 5;
             temps.forEach((t, i) => {
