@@ -138,10 +138,34 @@
         let uvData = [], tempData = [], hourlyWeather = [], weeklyData = [];
         let currentLat = 37.5038, currentLon = 126.7535;
 
-        const weatherEmoji = { 0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️", 51: "🌦️", 53: "🌦️", 55: "🌦️", 61: "🌧️", 63: "🌧️", 65: "🌧️", 80: "🌦️", 81: "🌧️", 82: "🌧️", 95: "⚡", 96: "⛈️", 99: "⛈️" };
+        const weatherIcons = {
+            0: { icon: "sun", color: "#FFB800" },
+            1: { icon: "cloud-sun", color: "#64748B" }, // Updated 'Partly Cloudy' to Slate Gray (closer to cloudy)
+            2: { icon: "cloud-sun", color: "#64748B" }, // Updated 'Partly Cloudy' to Slate Gray (closer to cloudy)
+            3: { icon: "cloud", color: "#94A3B8" },
+            45: { icon: "cloud-fog", color: "#94A3B8" },
+            48: { icon: "cloud-fog", color: "#94A3B8" },
+            51: { icon: "cloud-drizzle", color: "#60A5FA" },
+            53: { icon: "cloud-drizzle", color: "#60A5FA" },
+            55: { icon: "cloud-drizzle", color: "#60A5FA" },
+            61: { icon: "cloud-rain", color: "#3B82F6" },
+            63: { icon: "cloud-rain", color: "#3B82F6" },
+            65: { icon: "cloud-rain", color: "#3B82F6" },
+            80: { icon: "cloud-rain", color: "#60A5FA" },
+            81: { icon: "cloud-rain", color: "#3B82F6" },
+            82: { icon: "cloud-rain", color: "#1E40AF" },
+            95: { icon: "cloud-lightning", color: "#7C3AED" },
+            96: { icon: "cloud-lightning", color: "#7C3AED" },
+            99: { icon: "cloud-lightning", color: "#7C3AED" }
+        };
+
         const weatherMap = { 0: "맑음", 1: "대체로 맑음", 2: "구름 조금", 3: "흐림", 45: "안개", 51: "이슬비", 61: "비", 80: "소나기", 95: "뇌우" };
 
-        function getWeatherEmoji(code) { return weatherEmoji[code] || "🌡️"; }
+        function getWeatherIconHtml(code, size = 32) {
+            const config = weatherIcons[code] || { icon: "thermometer", color: "#94A3B8" };
+            return `<i data-lucide="${config.icon}" style="color: ${config.color}; width: ${size}px; height: ${size}px;"></i>`;
+        }
+
         function getWeatherDesc(code) { return weatherMap[code] || "보통"; }
         function isBadWeather(code) { return code >= 51; }
 
@@ -224,6 +248,68 @@
             }
         }
 
+        // Custom drawing function for chart weather icons
+        function drawWeatherIconOnChart(ctx, x, y, code) {
+            const config = weatherIcons[code] || { icon: "sun", color: "#FFB800" };
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.strokeStyle = config.color;
+            ctx.fillStyle = config.color;
+            ctx.lineWidth = 1.4;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+
+            if (code === 0) { // Clear Sun
+                ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.stroke();
+                for(let a=0; a<360; a+=45) {
+                    const rad = a * Math.PI / 180;
+                    ctx.beginPath(); ctx.moveTo(Math.cos(rad)*5.5, Math.sin(rad)*5.5); ctx.lineTo(Math.cos(rad)*7.5, Math.sin(rad)*7.5); ctx.stroke();
+                }
+            } else if (code === 1 || code === 2) { // Partly Cloudy
+                ctx.save();
+                ctx.translate(2.5, -2.5);
+                ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.stroke();
+                for(let a=0; a<360; a+=90) {
+                    const rad = a * Math.PI / 180;
+                    ctx.beginPath(); ctx.moveTo(Math.cos(rad)*3.5, Math.sin(rad)*3.5); ctx.lineTo(Math.cos(rad)*4.5, Math.sin(rad)*4.5); ctx.stroke();
+                }
+                ctx.restore();
+                ctx.beginPath();
+                ctx.moveTo(-4, 2);
+                ctx.bezierCurveTo(-6, 2, -6, -1, -4, -1);
+                ctx.bezierCurveTo(-4, -3, -1, -3, 0, -1);
+                ctx.bezierCurveTo(1, -3, 4, -3, 4, -1);
+                ctx.bezierCurveTo(6, -1, 6, 2, 4, 2);
+                ctx.closePath();
+                ctx.fillStyle = "white"; ctx.fill(); 
+                ctx.stroke();
+            } else if (code === 3) { // Cloud
+                ctx.beginPath();
+                ctx.moveTo(-4, 2);
+                ctx.bezierCurveTo(-6, 2, -6, -1, -4, -1);
+                ctx.bezierCurveTo(-4, -3, -1, -3, 1, -1);
+                ctx.bezierCurveTo(3, -3, 6, -3, 6, -1);
+                ctx.bezierCurveTo(8, -1, 8, 2, 6, 2);
+                ctx.closePath();
+                ctx.stroke();
+            } else if (code >= 51 && code <= 82) { // Rain
+                ctx.beginPath();
+                ctx.moveTo(-4, 1);
+                ctx.bezierCurveTo(-6, 1, -6, -2, -4, -2);
+                ctx.bezierCurveTo(-4, -4, -1, -4, 1, -2);
+                ctx.bezierCurveTo(3, -4, 6, -4, 6, -2);
+                ctx.bezierCurveTo(8, -2, 8, 1, 6, 1);
+                ctx.closePath(); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(-1, 4); ctx.lineTo(-2, 7);
+                ctx.moveTo(3, 4); ctx.lineTo(2, 7);
+                ctx.stroke();
+            } else { // Generic
+                ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        }
+
         function drawScrollableChart(id, uvs, temps, codes, startTime, isToday) {
             const canvas = document.getElementById(id);
             if (!canvas) return;
@@ -243,7 +329,6 @@
             const nowH = new Date().getHours();
             ctx.clearRect(0, 0, totalWidth, h);
 
-            // Creative Redesign of Golden Time Areas
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
                 const isRealNow = isToday && (startTime + i) === nowH;
@@ -252,25 +337,22 @@
                 ctx.setLineDash([4, 4]);
                 ctx.strokeStyle = isRealNow ? 'rgba(255, 138, 0, 0.7)' : 'rgba(0, 0, 0, 0.05)';
                 ctx.lineWidth = isRealNow ? 2 : 1;
-                ctx.beginPath(); ctx.moveTo(x, 5); ctx.lineTo(x, h - 30); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x, 15); ctx.lineTo(x, h - 30); ctx.stroke();
                 ctx.setLineDash([]);
 
                 if (isGolden) {
-                    // Modern Gradient Fill
                     const grad = ctx.createLinearGradient(0, 0, 0, h - 30);
                     grad.addColorStop(0, 'rgba(239, 68, 68, 0.08)');
                     grad.addColorStop(0.5, 'rgba(239, 68, 68, 0.03)');
                     grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
                     ctx.fillStyle = grad;
-                    ctx.fillRect(x - step/2, 5, step, h - 35);
-
-                    // Top Neon Accents (Line + Glow)
+                    ctx.fillRect(x - step/2, 15, step, h - 45);
                     ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
                     ctx.lineWidth = 2.5;
                     ctx.lineCap = 'round';
                     ctx.beginPath();
-                    ctx.moveTo(x - step/2 + 4, 5);
-                    ctx.lineTo(x + step/2 - 4, 5);
+                    ctx.moveTo(x - step/2 + 4, 15);
+                    ctx.lineTo(x + step/2 - 4, 15);
                     ctx.stroke();
                 }
             });
@@ -306,40 +388,26 @@
                 const badW = isBadWeather(codes[i]);
                 const isRealNow = isToday && (startTime + i) === nowH;
                 const isGolden = uv >= 6 && !isBadWeather(codes[i]);
-
-                ctx.font = '16px Inter'; ctx.textAlign = 'center';
-                ctx.fillStyle = '#000';
-                ctx.fillText(getWeatherEmoji(codes[i]), x, 25);
+                
+                drawWeatherIconOnChart(ctx, x, 30, codes[i]);
                 
                 const uvY = 170 - (uv * 9);
-                
-                // Point styling
                 if (isGolden) {
                    ctx.fillStyle = '#EF4444';
-                   // Add a subtle outer glow for golden points
                    ctx.shadowBlur = 8;
                    ctx.shadowColor = 'rgba(239, 68, 68, 0.5)';
                 } else {
                    ctx.fillStyle = badW ? '#CBD5E1' : '#FF8A00';
                    ctx.shadowBlur = 0;
                 }
-                
                 ctx.beginPath(); ctx.arc(x, uvY, isGolden ? 5 : 4.5, 0, Math.PI * 2); ctx.fill();
-                ctx.shadowBlur = 0; // reset
-                
+                ctx.shadowBlur = 0;
                 ctx.font = '700 11px Inter';
                 ctx.fillText(uv.toFixed(1), x, uvY - 12);
                 
-                if (isGolden) {
-                    ctx.fillStyle = '#EF4444'; 
-                    ctx.font = '400 10px Inter'; 
-                } else if (isRealNow) {
-                    ctx.fillStyle = '#FF8A00';
-                    ctx.font = '700 13px Inter'; 
-                } else {
-                    ctx.fillStyle = '#94A3B8';
-                    ctx.font = '400 10px Inter';
-                }
+                if (isGolden) { ctx.fillStyle = '#EF4444'; ctx.font = '400 10px Inter'; }
+                else if (isRealNow) { ctx.fillStyle = '#FF8A00'; ctx.font = '700 13px Inter'; }
+                else { ctx.fillStyle = '#94A3B8'; ctx.font = '400 10px Inter'; }
                 ctx.fillText(hour, x, h - 10);
             });
 
@@ -352,9 +420,7 @@
                     scrollPos = (targetIdx * step) + px - (step * 1.5);
                 } else {
                     let maxVal = -1;
-                    uvs.forEach((v, idx) => {
-                        if(v > maxVal) { maxVal = v; targetIdx = idx; }
-                    });
+                    uvs.forEach((v, idx) => { if(v > maxVal) { maxVal = v; targetIdx = idx; } });
                     scrollPos = (targetIdx * step) + px - (wrapper.offsetWidth / 2);
                 }
                 wrapper.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
@@ -376,7 +442,7 @@
                     <div onclick="toggleDay(${i})" class="flex items-center justify-between py-5 cursor-pointer active:bg-slate-50 px-3 rounded-2xl transition-all group ${badW?'opacity-60':''}">
                         <div class="flex items-center gap-4">
                             <span class="w-9 font-normal text-xs ${i===0?'text-blue-500 font-bold':'text-slate-400'}">${i===0?'오늘':dayNames[date.getDay()]}</span>
-                            <span class="text-2xl">${getWeatherEmoji(wCode)}</span>
+                            <div class="w-10 flex justify-center">${getWeatherIconHtml(wCode, 28)}</div>
                         </div>
                         <div class="flex-1 mx-5">
                             <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
