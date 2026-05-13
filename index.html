@@ -129,7 +129,6 @@
         function getWeatherDesc(code) { return weatherMap[code] || "보통"; }
         function isBadWeather(code) { return code >= 51; }
 
-        // PWA Manifest and Service Worker with improved error handling
         try {
             const manifest = {
                 "name": "UV Tracker v2",
@@ -148,17 +147,11 @@
             document.head.appendChild(link);
 
             if ('serviceWorker' in navigator) {
-                // Using base64 data URI instead of blob for better compatibility in restricted environments
                 const swCode = "self.addEventListener('fetch', function(e) { e.respondWith(fetch(e.request)); });";
                 const swDataUri = "data:application/javascript;base64," + btoa(swCode);
-                
-                navigator.serviceWorker.register(swDataUri).catch(err => {
-                    console.warn("Service Worker registration suppressed in this environment:", err.message);
-                });
+                navigator.serviceWorker.register(swDataUri).catch(err => console.warn("SW registration issue", err.message));
             }
-        } catch (e) {
-            console.warn("PWA setup restricted:", e);
-        }
+        } catch (e) { console.warn("PWA setup restricted", e); }
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault(); deferredPrompt = e;
@@ -234,16 +227,16 @@
 
             if (badWeather) {
                 badge.innerText = "불가";
-                badge.className = "bg-slate-700 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all";
+                badge.className = "bg-slate-700 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4";
                 desc.innerText = `현재 자외선은 ${uv.toFixed(1)}이지만, 비 예보가 있어 태닝이 불가능합니다.`;
             } else {
                 if (uv >= 6) { 
                     badge.innerText = "최적"; 
-                    badge.className = "bg-orange-500 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
+                    badge.className = "bg-orange-500 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4"; 
                     desc.innerText = "현재 날씨가 맑고 자외선이 적당하여 태닝 효율이 최고조입니다!"; 
                 } else { 
                     badge.innerText = "보통"; 
-                    badge.className = "bg-slate-400 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4 transition-all"; 
+                    badge.className = "bg-slate-400 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4"; 
                     desc.innerText = "자외선이 약하거나 태닝하기에 아주 충분하지는 않은 상태입니다."; 
                 }
             }
@@ -286,30 +279,32 @@
             const nowH = new Date().getHours();
             ctx.clearRect(0, 0, totalWidth, h);
 
-            // Layer 1: Background highlights (now indicator and golden zone)
+            // Layer 1: Strong Red Gradient & Now Indicator (BACKGROUND)
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
                 const absoluteHourIndex = startTime + i;
                 const isRealNow = isToday && absoluteHourIndex === nowH;
 
-                if (isRealNow) {
-                    ctx.setLineDash([4, 4]);
-                    ctx.strokeStyle = 'rgba(255, 138, 0, 0.4)';
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-
+                // Golden Time Gradient (VIVID RED)
                 if (uv >= 6 && !isBadWeather(codes[i])) {
                     const grad = ctx.createLinearGradient(0, 0, 0, h);
-                    grad.addColorStop(0, 'rgba(255, 138, 0, 0.08)');
-                    grad.addColorStop(1, 'rgba(255, 138, 0, 0)');
+                    grad.addColorStop(0, 'rgba(239, 68, 68, 0.25)'); // Strong Vivid Red
+                    grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
                     ctx.fillStyle = grad;
                     ctx.fillRect(x - step/2, 0, step, h);
                 }
+
+                // Now Indicator Line (Always BEHIND icons)
+                if (isRealNow) {
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeStyle = 'rgba(255, 138, 0, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+                    ctx.setLineDash([]);
+                }
             });
 
-            // Layer 2: Guide dots/lines
+            // Layer 2: Guide dots
             uvs.forEach((_, i) => {
                 const x = px + i * step;
                 ctx.setLineDash([2, 2]);
@@ -343,7 +338,7 @@
             });
             ctx.stroke();
 
-            // Layer 5: Labels and Icons (Top Layer)
+            // Layer 5: Labels and Icons (TOP)
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
                 const absoluteHourIndex = startTime + i;
@@ -368,10 +363,16 @@
                 ctx.fillText(hour, x, h - 10);
             });
 
-            if (isToday && id === "uvChart") {
-                // Scroll to 2nd position (Index 3 is 'Now', minus 1 step and offset)
-                const scrollPos = (3 * step) - step + 15;
-                wrapper.scrollLeft = scrollPos;
+            // Handle Initial Scrolling
+            if (isToday) {
+                // Scroll to 2nd position (Current is index 3)
+                wrapper.scrollLeft = (3 * step) - step + 15;
+            } else {
+                // SCROLL TO PEAK UV (Center it)
+                const maxUv = Math.max(...uvs);
+                const peakIdx = uvs.indexOf(maxUv);
+                const wrapWidth = wrapper.clientWidth;
+                wrapper.scrollLeft = (peakIdx * step) + px - (wrapWidth / 2) + (step / 2);
             }
         }
 
@@ -413,11 +414,19 @@
             const isOpen = content.classList.contains('open');
             document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open'));
             document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
+            
             if (!isOpen) {
-                content.classList.add('open'); arrow.classList.add('rotate-180');
+                content.classList.add('open'); 
+                arrow.classList.add('rotate-180');
                 setTimeout(() => {
                     const startIdx = i * 24;
-                    drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, i === 0);
+                    drawScrollableChart(`chart-${i}`, 
+                        uvData.slice(startIdx, startIdx + 24), 
+                        tempData.slice(startIdx, startIdx + 24), 
+                        hourlyWeather.slice(startIdx, startIdx + 24), 
+                        0, 
+                        i === 0
+                    );
                 }, 100);
             }
         }
