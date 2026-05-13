@@ -84,22 +84,15 @@
         <div id="goldenTime" class="text-5xl font-black tracking-tighter">-- ~ --</div>
     </div>
 
-    <!-- Main Timeline -->
+    <!-- Main Chart Card (Title Removed, Legend moved to Bottom) -->
     <div class="card p-7 mb-4">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-slate-800 font-black text-xl flex items-center gap-2.5 tracking-tight">
-                <i data-lucide="bar-chart-3" class="w-6 h-6 text-orange-500"></i>
-                태닝 타임라인
-            </h2>
+        <div id="mainChartWrapper" class="scroll-chart-wrapper no-scrollbar mb-4">
+            <canvas id="uvChart"></canvas>
         </div>
         
-        <div class="flex gap-4 mb-6 overflow-x-auto pb-1 no-scrollbar text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <div class="flex gap-4 pt-2 no-scrollbar text-[10px] font-black text-slate-400 uppercase tracking-widest border-t border-slate-50">
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-[#FF8A00]"></span> <span>UV Index</span></div>
             <div class="flex items-center gap-1.5 shrink-0"><span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span> <span>Temp</span></div>
-        </div>
-
-        <div id="mainChartWrapper" class="scroll-chart-wrapper no-scrollbar">
-            <canvas id="uvChart"></canvas>
         </div>
     </div>
 
@@ -290,23 +283,19 @@
                 ctx.fillText(hour, x, h - 10);
             });
 
-            // Auto-scroll logic based on context (Today vs Future)
             requestAnimationFrame(() => {
                 let targetIdx = 0;
                 let scrollPos = 0;
                 
                 if (isToday) {
-                    // Current hour focus for today
                     targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
                     if(targetIdx === -1) targetIdx = 0;
                     scrollPos = (targetIdx * step) + px - (step * 1.5);
                 } else {
-                    // Maximum UV (Golden Time Peak) focus for weekly list
                     let maxVal = -1;
                     uvs.forEach((v, idx) => {
                         if(v > maxVal) { maxVal = v; targetIdx = idx; }
                     });
-                    // Center the peak value in the screen
                     scrollPos = (targetIdx * step) + px - (wrapper.offsetWidth / 2);
                 }
                 
@@ -352,7 +341,6 @@
             const arrow = document.getElementById(`arrow-${i}`);
             const isOpen = content.classList.contains('open');
             
-            // Close other items
             document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open'));
             document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
             
@@ -360,10 +348,8 @@
                 content.classList.add('open'); 
                 arrow.classList.add('rotate-180');
                 
-                // Drawing chart and handling auto-scroll
                 setTimeout(() => {
                     const startIdx = i * 24;
-                    // Pass isToday as false to trigger "Peak Centering" logic
                     drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, false);
                 }, 100);
             }
