@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UV & Weather Tracker v2</title>
+    <title>UV & Weather Tracker v3</title>
     <meta name="theme-color" content="#FF8A00"/>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -29,7 +30,7 @@
         }
         canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
-        #installBtn { display: none; background: #334155; }
+        #installBtn { display: none; background: #334155; box-shadow: 0 4px 12px rgba(51, 65, 85, 0.3); }
     </style>
 </head>
 <body class="p-2 md:p-3 max-w-2xl mx-auto pb-16">
@@ -130,6 +131,30 @@
         function getWeatherDesc(code) { return weatherMap[code] || "보통"; }
         function isBadWeather(code) { return code >= 51; }
 
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installBtn = document.getElementById('installBtn');
+            if (installBtn) installBtn.style.display = 'flex';
+        });
+
+        document.getElementById('installBtn')?.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('installBtn').style.display = 'none';
+                }
+                deferredPrompt = null;
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            const installBtn = document.getElementById('installBtn');
+            if (installBtn) installBtn.style.display = 'none';
+            deferredPrompt = null;
+        });
+
         async function initLocation() {
             const btn = document.getElementById("updateBtn");
             const icon = document.getElementById("updateIcon");
@@ -156,10 +181,10 @@
                 updateUI(data.current_weather);
                 
                 const nowH = new Date().getHours();
-                // 메인 타임라인: 현재 시간이 두 번째로 오도록 (isToday = true)
                 const startIdx = Math.max(0, nowH - 1); 
                 const endIdx = startIdx + 25; 
                 
+                // Main Timeline: Now is 2nd (isToday = true)
                 drawScrollableChart("uvChart", 
                     uvData.slice(startIdx, endIdx), 
                     tempData.slice(startIdx, endIdx), 
@@ -177,51 +202,6 @@
             }
         }
 
-        function updateUI(current) {
-            const now = new Date();
-            const hour = now.getHours();
-            const uv = uvData[hour] || 0;
-            const code = hourlyWeather[hour] || 0;
-            const badWeather = isBadWeather(code);
-
-            document.getElementById("uvValue").innerText = uv.toFixed(1);
-            const badge = document.getElementById("uvBadge");
-            const desc = document.getElementById("uvDesc");
-
-            if (badWeather) {
-                badge.innerText = "불가";
-                badge.className = "bg-slate-700 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4";
-                desc.innerText = `현재 자외선은 ${uv.toFixed(1)}이지만, 비 예보가 있어 태닝이 불가능합니다.`;
-            } else {
-                if (uv >= 6) { 
-                    badge.innerText = "최적"; 
-                    badge.className = "bg-orange-500 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4"; 
-                    desc.innerText = "현재 날씨가 맑고 자외선이 적당하여 태닝 효율이 최고조입니다!"; 
-                } else { 
-                    badge.innerText = "보통"; 
-                    badge.className = "bg-slate-400 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase relative -top-4"; 
-                    desc.innerText = "자외선이 약하거나 태닝하기에 아주 충분하지는 않은 상태입니다."; 
-                }
-            }
-
-            if (current) {
-                document.getElementById("currentTemp").innerText = Math.round(current.temperature) + "°";
-                document.getElementById("currentWeatherDesc").innerText = getWeatherDesc(current.weathercode);
-            }
-            document.getElementById("lastUpdate").innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-
-            let start = -1, end = -1;
-            for (let i = 0; i < 24; i++) {
-                if (uvData[i] >= 6 && !isBadWeather(hourlyWeather[i])) { 
-                    if (start === -1) start = i; end = i; 
-                }
-            }
-            document.getElementById("goldenTime").innerText = start !== -1 ? `${start}:00 ~ ${end + 1}:00` : "태닝 불가";
-            document.getElementById("goldenTimeCard").style.opacity = start === -1 ? "0.6" : "1";
-
-            renderWeekly();
-        }
-
         function drawScrollableChart(id, uvs, temps, codes, startTime, isToday) {
             const canvas = document.getElementById(id);
             if (!canvas) return;
@@ -230,7 +210,7 @@
             const dpr = window.devicePixelRatio || 1;
             
             const step = 55; 
-            const px = 70; // 여백을 충분히 확보하여 직전 시간 데이터가 짤리지 않게 함
+            const px = 70; 
             const totalWidth = step * uvs.length + (px * 2);
             const h = 210;
             
@@ -246,9 +226,9 @@
                 const x = px + i * step;
                 const isRealNow = isToday && (startTime + i) === nowH;
 
-                // 시간별 세로 점선 (복구됨)
+                // Vertical Guide Lines
                 ctx.setLineDash([4, 4]);
-                ctx.strokeStyle = isRealNow ? 'rgba(255, 138, 0, 0.5)' : 'rgba(0, 0, 0, 0.06)';
+                ctx.strokeStyle = isRealNow ? 'rgba(255, 138, 0, 0.6)' : 'rgba(0, 0, 0, 0.06)';
                 ctx.lineWidth = isRealNow ? 2 : 1;
                 ctx.beginPath(); 
                 ctx.moveTo(x, 5); 
@@ -256,7 +236,7 @@
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // 골든타임 배경 그라데이션 - 아이콘보다 높게 (y=5부터 시작, 더 진하게)
+                // Golden Time Background (Higher than icons)
                 if (uv >= 6 && !isBadWeather(codes[i])) {
                     const grad = ctx.createLinearGradient(0, 5, 0, h - 30);
                     grad.addColorStop(0, 'rgba(239, 68, 68, 0.22)'); 
@@ -266,6 +246,7 @@
                 }
             });
 
+            // Temperature Line
             const tMin = Math.min(...temps), tMax = Math.max(...temps), tRange = (tMax - tMin) || 5;
             const getTempY = (t) => 85 - ((t - tMin) / tRange) * 30;
 
@@ -277,7 +258,7 @@
             });
             ctx.stroke();
 
-            // 온도 숫자 표시 (복구됨)
+            // Temperature Numbers
             temps.forEach((t, i) => {
                 const x = px + i * step;
                 const y = getTempY(t);
@@ -286,6 +267,7 @@
                 ctx.fillText(Math.round(t) + "°", x, y - 8);
             });
 
+            // UV Line
             ctx.beginPath();
             ctx.strokeStyle = '#FF8A00'; ctx.lineWidth = 3;
             uvs.forEach((uv, i) => {
@@ -301,17 +283,20 @@
                 const badW = isBadWeather(codes[i]);
                 const isRealNow = isToday && (startTime + i) === nowH;
 
+                // Icons
                 ctx.font = '16px Inter'; ctx.textAlign = 'center';
                 ctx.fillText(getWeatherEmoji(codes[i]), x, 25);
 
+                // UV Dots
                 const uvY = 170 - (uv * 9);
                 ctx.fillStyle = badW ? '#CBD5E1' : (uv >= 6 ? '#EF4444' : '#FF8A00');
                 ctx.beginPath(); ctx.arc(x, uvY, 4.5, 0, Math.PI * 2); ctx.fill();
                 
+                // UV Numbers
                 ctx.font = 'bold 11px Inter';
                 ctx.fillText(uv.toFixed(1), x, uvY - 12);
 
-                // 시간 표기: '시' 없이 숫자만 표기 (복구됨)
+                // Hour Numbers (Numbers only, V3 Rule)
                 ctx.fillStyle = isRealNow ? '#FF8A00' : '#94A3B8';
                 ctx.font = isRealNow ? 'bold 13px Inter' : '600 10px Inter';
                 ctx.fillText(hour, x, h - 10);
@@ -323,12 +308,12 @@
                 let scrollPos = 0;
 
                 if (isToday) {
-                    // 메인 타임라인: 현재시간이 왼쪽에서 두 번째로 오도록 정렬 (직전 시간 안 잘리게)
+                    // Main Timeline: Now is 2nd Position
                     targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
                     if(targetIdx === -1) targetIdx = 0;
                     scrollPos = (targetIdx * step) + px - step - 10;
                 } else {
-                    // 주간 예보 (오늘 포함): 그날의 골든타임(피크시간)이 정가운데 오도록 정렬
+                    // Weekly Detail: Peak Time in Center
                     let maxVal = -1;
                     uvs.forEach((v, idx) => { if(v > maxVal) { maxVal = v; targetIdx = idx; } });
                     scrollPos = (targetIdx * step) + px - (wrapperWidth / 2);
@@ -383,7 +368,6 @@
                 arrow.classList.add('rotate-180');
                 setTimeout(() => {
                     const startIdx = i * 24;
-                    // 주간 예보 카드 내 '오늘' 포함 모든 날짜: 골든타임(피크) 기준 정중앙 정렬 (isToday = false 전달)
                     drawScrollableChart(`chart-${i}`, 
                         uvData.slice(startIdx, startIdx + 24), 
                         tempData.slice(startIdx, startIdx + 24), 
@@ -403,7 +387,17 @@
             } catch { document.getElementById("locationName").innerText = "내 위치"; }
         }
 
-        window.onload = () => { initLocation(); setInterval(initLocation, 600000); };
+        window.onload = () => { 
+            initLocation(); 
+            setInterval(initLocation, 600000); 
+
+            // Fix: Check protocol to avoid registration error in preview environment
+            if ("serviceWorker" in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+                navigator.serviceWorker.register("./sw.js").catch(err => {
+                    console.warn("ServiceWorker registration failed:", err);
+                });
+            }
+        };
     </script>
 </body>
 </html>
