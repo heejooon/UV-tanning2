@@ -149,12 +149,6 @@
             }
         });
 
-        window.addEventListener('appinstalled', () => {
-            const installBtn = document.getElementById('installBtn');
-            if (installBtn) installBtn.style.display = 'none';
-            deferredPrompt = null;
-        });
-
         async function initLocation() {
             const btn = document.getElementById("updateBtn");
             const icon = document.getElementById("updateIcon");
@@ -179,12 +173,12 @@
                 weeklyData = data.daily;
 
                 updateUI(data.current_weather);
+                renderWeekly();
                 
                 const nowH = new Date().getHours();
                 const startIdx = Math.max(0, nowH - 1); 
                 const endIdx = startIdx + 25; 
                 
-                // Main Timeline: Now is 2nd (isToday = true)
                 drawScrollableChart("uvChart", 
                     uvData.slice(startIdx, endIdx), 
                     tempData.slice(startIdx, endIdx), 
@@ -199,6 +193,49 @@
                 document.getElementById("updateBtn").disabled = false;
                 document.getElementById("updateIcon").classList.remove("animate-spin");
                 lucide.createIcons();
+            }
+        }
+
+        function updateUI(current) {
+            const now = new Date();
+            const hour = now.getHours();
+            const uv = uvData[hour] || 0;
+
+            document.getElementById("uvValue").innerText = uv.toFixed(1);
+            document.getElementById("currentTemp").innerText = Math.round(current.temperature) + "°";
+            document.getElementById("currentWeatherDesc").innerText = getWeatherDesc(current.weathercode);
+            document.getElementById("lastUpdate").innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+
+            let start = -1, end = -1;
+            for (let i = 0; i < 24; i++) {
+                if (uvData[i] >= 6 && !isBadWeather(hourlyWeather[i])) {
+                    if (start === -1) start = i;
+                    end = i;
+                }
+            }
+
+            const goldenEl = document.getElementById("goldenTime");
+            if (start !== -1) {
+                goldenEl.innerText = `${start} ~ ${end + 1}`;
+            } else {
+                goldenEl.innerText = "오늘 없음";
+            }
+
+            const badge = document.getElementById("uvBadge");
+            const desc = document.getElementById("uvDesc");
+            
+            if (uv >= 8) {
+                badge.innerText = "위험";
+                badge.className = "bg-red-500 text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4";
+                desc.innerText = "자외선이 매우 강합니다. 장시간 노출을 피하세요.";
+            } else if (uv >= 6) {
+                badge.innerText = "최적";
+                badge.className = "bg-[#FF8A00] text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4";
+                desc.innerText = "태닝 효율이 가장 좋은 시간대입니다. 자외선 차단에 유의하세요.";
+            } else {
+                badge.innerText = "낮음";
+                badge.className = "bg-gray-400 text-white px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider relative -top-4";
+                desc.innerText = "현재 자외선 지수가 낮아 태닝 효율이 떨어집니다.";
             }
         }
 
@@ -226,17 +263,12 @@
                 const x = px + i * step;
                 const isRealNow = isToday && (startTime + i) === nowH;
 
-                // Vertical Guide Lines
                 ctx.setLineDash([4, 4]);
                 ctx.strokeStyle = isRealNow ? 'rgba(255, 138, 0, 0.6)' : 'rgba(0, 0, 0, 0.06)';
                 ctx.lineWidth = isRealNow ? 2 : 1;
-                ctx.beginPath(); 
-                ctx.moveTo(x, 5); 
-                ctx.lineTo(x, h - 30); 
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x, 5); ctx.lineTo(x, h - 30); ctx.stroke();
                 ctx.setLineDash([]);
 
-                // Golden Time Background (Higher than icons)
                 if (uv >= 6 && !isBadWeather(codes[i])) {
                     const grad = ctx.createLinearGradient(0, 5, 0, h - 30);
                     grad.addColorStop(0, 'rgba(239, 68, 68, 0.22)'); 
@@ -246,7 +278,6 @@
                 }
             });
 
-            // Temperature Line
             const tMin = Math.min(...temps), tMax = Math.max(...temps), tRange = (tMax - tMin) || 5;
             const getTempY = (t) => 85 - ((t - tMin) / tRange) * 30;
 
@@ -258,16 +289,13 @@
             });
             ctx.stroke();
 
-            // Temperature Numbers
             temps.forEach((t, i) => {
                 const x = px + i * step;
-                const y = getTempY(t);
                 ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
                 ctx.font = '700 9px Inter'; ctx.textAlign = 'center';
-                ctx.fillText(Math.round(t) + "°", x, y - 8);
+                ctx.fillText(Math.round(t) + "°", x, getTempY(t) - 8);
             });
 
-            // UV Line
             ctx.beginPath();
             ctx.strokeStyle = '#FF8A00'; ctx.lineWidth = 3;
             uvs.forEach((uv, i) => {
@@ -283,20 +311,16 @@
                 const badW = isBadWeather(codes[i]);
                 const isRealNow = isToday && (startTime + i) === nowH;
 
-                // Icons
                 ctx.font = '16px Inter'; ctx.textAlign = 'center';
                 ctx.fillText(getWeatherEmoji(codes[i]), x, 25);
 
-                // UV Dots
                 const uvY = 170 - (uv * 9);
                 ctx.fillStyle = badW ? '#CBD5E1' : (uv >= 6 ? '#EF4444' : '#FF8A00');
                 ctx.beginPath(); ctx.arc(x, uvY, 4.5, 0, Math.PI * 2); ctx.fill();
                 
-                // UV Numbers
                 ctx.font = 'bold 11px Inter';
                 ctx.fillText(uv.toFixed(1), x, uvY - 12);
 
-                // Hour Numbers (Numbers only, V3 Rule)
                 ctx.fillStyle = isRealNow ? '#FF8A00' : '#94A3B8';
                 ctx.font = isRealNow ? 'bold 13px Inter' : '600 10px Inter';
                 ctx.fillText(hour, x, h - 10);
@@ -308,23 +332,21 @@
                 let scrollPos = 0;
 
                 if (isToday) {
-                    // Main Timeline: Now is 2nd Position
                     targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
                     if(targetIdx === -1) targetIdx = 0;
                     scrollPos = (targetIdx * step) + px - step - 10;
                 } else {
-                    // Weekly Detail: Peak Time in Center
                     let maxVal = -1;
                     uvs.forEach((v, idx) => { if(v > maxVal) { maxVal = v; targetIdx = idx; } });
                     scrollPos = (targetIdx * step) + px - (wrapperWidth / 2);
                 }
-                
                 wrapper.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
             });
         }
 
         function renderWeekly() {
             const list = document.getElementById("weeklyList");
+            if (!list) return;
             list.innerHTML = "";
             const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
             for (let i = 0; i < 7; i++) {
@@ -391,7 +413,6 @@
             initLocation(); 
             setInterval(initLocation, 600000); 
 
-            // Fix: Check protocol to avoid registration error in preview environment
             if ("serviceWorker" in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
                 navigator.serviceWorker.register("./sw.js").catch(err => {
                     console.warn("ServiceWorker registration failed:", err);
