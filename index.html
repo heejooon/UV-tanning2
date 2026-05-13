@@ -30,7 +30,8 @@
         }
         canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
-        #installBtn { display: none; background: #334155; box-shadow: 0 4px 12px rgba(51, 65, 85, 0.3); }
+        /* 주소 옆 다운로드 버튼 스타일 */
+        #installBtn { display: none; }
     </style>
 </head>
 <body class="p-2 md:p-3 max-w-2xl mx-auto pb-16">
@@ -62,15 +63,18 @@
                     <i data-lucide="map-pin" class="w-3.5 h-3.5 text-blue-500"></i>
                     <span id="locationName" class="text-[11px] font-bold text-slate-600 truncate max-w-[100px]">위치 찾는 중...</span>
                 </div>
+                <!-- 주소 옆 다운로드 버튼 (요청하신 위치) -->
+                <button id="installBtn" class="flex items-center gap-1.5 bg-slate-800 px-3 py-2 rounded-full border border-slate-700 text-white active:scale-95 transition-all shadow-sm">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span class="text-[11px] font-bold uppercase tracking-wider">App</span>
+                </button>
                 <div class="flex items-center gap-1.5 bg-slate-100/50 px-3 py-2 rounded-full border border-slate-200/50">
                     <i data-lucide="clock" class="w-3.5 h-3.5 text-orange-400"></i>
                     <span id="lastUpdate" class="text-[11px] font-bold text-slate-600">--:--</span>
                 </div>
             </div>
             <div class="flex gap-2">
-                <button id="installBtn" class="text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-lg">
-                    <i data-lucide="download" class="w-5 h-5"></i>
-                </button>
+                <!-- 새로고침 옆의 기존 다운로드 버튼은 삭제되었습니다 -->
                 <button id="updateBtn" onclick="initLocation()" class="btn-update text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 hover:brightness-110 shadow-lg shrink-0">
                     <i id="updateIcon" data-lucide="refresh-cw" class="w-5 h-5"></i>
                 </button>
