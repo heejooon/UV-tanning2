@@ -1,0 +1,15 @@
+{
+  "name": "UV Tanning AI",
+  "short_name": "UV AI",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F4F7FA",
+  "theme_color": "#FF8A00",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/869/869869.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
