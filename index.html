@@ -30,7 +30,6 @@
         }
         canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
-        /* 주소 옆 다운로드 버튼 스타일 */
         #installBtn { display: none; }
     </style>
 </head>
@@ -53,7 +52,7 @@
         
         <div class="bg-slate-50 rounded-2xl p-3.5 mb-6 border border-slate-100/50">
             <p id="uvDesc" class="text-slate-600 text-[13px] font-semibold leading-relaxed break-keep">
-                현재 위치의 기상 정보를 분석하여 태닝 적합도를 계산 중입니다...
+                정보를 불러오는 중입니다...
             </p>
         </div>
 
@@ -61,28 +60,27 @@
             <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1.5 bg-slate-100/50 px-3 py-2 rounded-full border border-slate-200/50">
                     <i data-lucide="map-pin" class="w-3.5 h-3.5 text-blue-500"></i>
-                    <span id="locationName" class="text-[11px] font-bold text-slate-600 truncate max-w-[100px]">위치 찾는 중...</span>
+                    <span id="locationName" class="text-[11px] font-bold text-slate-600 truncate max-w-[90px]">위치 확인 중</span>
                 </div>
-                <!-- 주소 옆 다운로드 버튼 (요청하신 위치) -->
+                
                 <button id="installBtn" class="flex items-center gap-1.5 bg-slate-800 px-3 py-2 rounded-full border border-slate-700 text-white active:scale-95 transition-all shadow-sm">
                     <i data-lucide="download" class="w-3.5 h-3.5"></i>
                     <span class="text-[11px] font-bold uppercase tracking-wider">App</span>
                 </button>
+
                 <div class="flex items-center gap-1.5 bg-slate-100/50 px-3 py-2 rounded-full border border-slate-200/50">
                     <i data-lucide="clock" class="w-3.5 h-3.5 text-orange-400"></i>
                     <span id="lastUpdate" class="text-[11px] font-bold text-slate-600">--:--</span>
                 </div>
             </div>
-            <div class="flex gap-2">
-                <!-- 새로고침 옆의 기존 다운로드 버튼은 삭제되었습니다 -->
-                <button id="updateBtn" onclick="initLocation()" class="btn-update text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 hover:brightness-110 shadow-lg shrink-0">
-                    <i id="updateIcon" data-lucide="refresh-cw" class="w-5 h-5"></i>
-                </button>
-            </div>
+            
+            <button id="updateBtn" onclick="initLocation()" class="btn-update text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 hover:brightness-110 shadow-lg shrink-0">
+                <i id="updateIcon" data-lucide="refresh-cw" class="w-5 h-5"></i>
+            </button>
         </div>
     </div>
 
-    <div id="goldenTimeCard" class="card p-7 mb-4 bg-gradient-to-br from-orange-500 to-[#FF8A00] text-white border-none shadow-orange-200 transition-all duration-500">
+    <div id="goldenTimeCard" class="card p-7 mb-4 bg-gradient-to-br from-orange-500 to-[#FF8A00] text-white border-none shadow-orange-200">
         <div class="flex items-center gap-2 mb-3 opacity-90">
             <div class="p-1.5 bg-white/20 rounded-lg">
                 <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
@@ -146,9 +144,7 @@
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    document.getElementById('installBtn').style.display = 'none';
-                }
+                if (outcome === 'accepted') document.getElementById('installBtn').style.display = 'none';
                 deferredPrompt = null;
             }
         });
@@ -180,8 +176,8 @@
                 renderWeekly();
                 
                 const nowH = new Date().getHours();
-                const startIdx = Math.max(0, nowH - 1); 
-                const endIdx = startIdx + 25; 
+                const startIdx = Math.max(0, nowH - 3); // 현재 시간 -3부터 시작
+                const endIdx = startIdx + 28; 
                 
                 drawScrollableChart("uvChart", 
                     uvData.slice(startIdx, endIdx), 
@@ -191,9 +187,8 @@
                     true
                 );
                 fetchLocationName(currentLat, currentLon);
-            } catch (e) {
-                console.error("Data Fetch Error:", e);
-            } finally {
+            } catch (e) { console.error("Data Fetch Error:", e); }
+            finally {
                 document.getElementById("updateBtn").disabled = false;
                 document.getElementById("updateIcon").classList.remove("animate-spin");
                 lucide.createIcons();
@@ -219,11 +214,7 @@
             }
 
             const goldenEl = document.getElementById("goldenTime");
-            if (start !== -1) {
-                goldenEl.innerText = `${start} ~ ${end + 1}`;
-            } else {
-                goldenEl.innerText = "오늘 없음";
-            }
+            goldenEl.innerText = start !== -1 ? `${start} ~ ${end + 1}` : "오늘 없음";
 
             const badge = document.getElementById("uvBadge");
             const desc = document.getElementById("uvDesc");
@@ -250,8 +241,8 @@
             const wrapper = canvas.parentElement;
             const dpr = window.devicePixelRatio || 1;
             
-            const step = 55; 
-            const px = 70; 
+            const step = 45; // 한 화면에 7~8개 보이도록 간격 조정
+            const px = 40; 
             const totalWidth = step * uvs.length + (px * 2);
             const h = 210;
             
@@ -263,6 +254,7 @@
             const nowH = new Date().getHours();
             ctx.clearRect(0, 0, totalWidth, h);
 
+            // 가이드 점선 및 골든타임 배경
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
                 const isRealNow = isToday && (startTime + i) === nowH;
@@ -282,6 +274,7 @@
                 }
             });
 
+            // 온도 그래프
             const tMin = Math.min(...temps), tMax = Math.max(...temps), tRange = (tMax - tMin) || 5;
             const getTempY = (t) => 85 - ((t - tMin) / tRange) * 30;
 
@@ -293,6 +286,7 @@
             });
             ctx.stroke();
 
+            // 온도 숫자
             temps.forEach((t, i) => {
                 const x = px + i * step;
                 ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
@@ -300,6 +294,7 @@
                 ctx.fillText(Math.round(t) + "°", x, getTempY(t) - 8);
             });
 
+            // UV 그래프
             ctx.beginPath();
             ctx.strokeStyle = '#FF8A00'; ctx.lineWidth = 3;
             uvs.forEach((uv, i) => {
@@ -309,6 +304,7 @@
             });
             ctx.stroke();
 
+            // UV 점 및 시간 (숫자만)
             uvs.forEach((uv, i) => {
                 const x = px + i * step;
                 const hour = (startTime + i) % 24;
@@ -332,15 +328,17 @@
 
             requestAnimationFrame(() => {
                 const wrapperWidth = wrapper.offsetWidth;
-                let targetIdx = 0;
                 let scrollPos = 0;
 
                 if (isToday) {
-                    targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
-                    if(targetIdx === -1) targetIdx = 0;
-                    scrollPos = (targetIdx * step) + px - step - 10;
+                    // 현재 시간(Now)의 인덱스 찾기
+                    const targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
+                    // 현재 시간이 왼쪽에서 정확히 두 번째 칸에 오도록 (즉, index 1 위치)
+                    // scrollPos = (현재시간 위치) - (한 칸 크기)
+                    scrollPos = (targetIdx * step) + px - step;
                 } else {
-                    let maxVal = -1;
+                    // 주간 예보 등은 골든타임 피크가 중앙에 오도록
+                    let maxVal = -1, targetIdx = 0;
                     uvs.forEach((v, idx) => { if(v > maxVal) { maxVal = v; targetIdx = idx; } });
                     scrollPos = (targetIdx * step) + px - (wrapperWidth / 2);
                 }
@@ -385,13 +383,11 @@
             const content = document.getElementById(`content-${i}`);
             const arrow = document.getElementById(`arrow-${i}`);
             const isOpen = content.classList.contains('open');
-            
             document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open'));
             document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
             
             if (!isOpen) {
-                content.classList.add('open'); 
-                arrow.classList.add('rotate-180');
+                content.classList.add('open'); arrow.classList.add('rotate-180');
                 setTimeout(() => {
                     const startIdx = i * 24;
                     drawScrollableChart(`chart-${i}`, 
@@ -399,7 +395,7 @@
                         tempData.slice(startIdx, startIdx + 24), 
                         hourlyWeather.slice(startIdx, startIdx + 24), 
                         0, 
-                        false 
+                        false // 주간 예보는 무조건 골든타임 중앙 정렬
                     );
                 }, 100);
             }
@@ -416,11 +412,8 @@
         window.onload = () => { 
             initLocation(); 
             setInterval(initLocation, 600000); 
-
             if ("serviceWorker" in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
-                navigator.serviceWorker.register("./sw.js").catch(err => {
-                    console.warn("ServiceWorker registration failed:", err);
-                });
+                navigator.serviceWorker.register("./sw.js").catch(() => {});
             }
         };
     </script>
