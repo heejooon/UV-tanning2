@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UV & Weather Tracker Hybrid v5.4</title>
+    <title>UV & Weather Tracker Hybrid v6</title>
     <meta name="theme-color" content="#FF8A00"/>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -30,11 +30,15 @@
         canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
         
-        /* [Theme] Golden Time Card - Today (Orange-Red) */
+        /* [Theme] Golden Time Card - Waiting (Gold-Amber) */
+        .golden-card-wait {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        }
+        /* [Theme] Golden Time Card - Active (Orange-Red) */
         .golden-card-today {
             background: linear-gradient(135deg, #FF8A00 0%, #E11D48 100%);
         }
-        /* [Theme] Golden Time Card - Tomorrow (Navy-Black) */
+        /* [Theme] Golden Time Card - Tomorrow/Over (Navy-Black) */
         .golden-card-tomorrow {
             background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 45%, #0F172A 85%, #020617 100%);
         }
@@ -82,7 +86,7 @@
     </div>
 
     <!-- Golden Time Card -->
-    <div id="goldenTimeCard" class="card p-6 mb-4 golden-card-today text-white border-none transition-colors duration-700">
+    <div id="goldenTimeCard" class="card p-6 mb-4 golden-card-wait text-white border-none transition-colors duration-700">
         <div class="flex items-start justify-between mb-6">
             <div class="flex items-center gap-2 mt-1">
                 <div class="w-1.5 h-4 bg-white/40 rounded-full"></div>
@@ -91,7 +95,6 @@
             
             <div class="flex flex-col items-end">
                 <div class="flex flex-col items-end">
-                    <!-- available(엔터) 잔여시간 구조로 통일 -->
                     <div id="totalDurationContainer" class="flex flex-col items-end pt-0.5">
                         <span class="text-[9px] font-bold opacity-70 lowercase tracking-tighter leading-tight">available</span>
                         <span id="totalDurationValue" class="text-2xl font-extralight opacity-90 tracking-tighter leading-none">--</span>
@@ -151,7 +154,7 @@
     </div>
 
     <script>
-        // Global States (Hybrid Model)
+        // Global States
         let uvData = [], tempData = [], hourlyWeather = [], weeklyData = [];
         let displayUV = [], displayTemp = [], displayWeather = [];
         let currentLat = 37.5038, currentLon = 126.7535;
@@ -206,7 +209,6 @@
             try {
                 const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&current=temperature_2m,uv_index,weather_code&hourly=uv_index,temperature_2m,weather_code&daily=uv_index_max,weather_code&timezone=Asia%2FSeoul`);
                 const data = await res.json();
-                
                 const nowHour = new Date().getHours();
 
                 uvData = [...data.hourly.uv_index];
@@ -287,21 +289,22 @@
             const tag = document.getElementById("goldenTag");
             const durationValue = document.getElementById("totalDurationValue");
 
+            // 카드 테마 초기화
+            card.classList.remove("golden-card-wait", "golden-card-today", "golden-card-tomorrow");
+
             if (useTomorrow) {
-                card.classList.replace("golden-card-today", "golden-card-tomorrow");
+                card.classList.add("golden-card-tomorrow");
                 title.innerText = "Tomorrow's Golden Time";
                 tag.innerText = "Next Opportunity";
                 
                 if (start !== -1) {
                     timeDisplay.innerText = `${start % 24} ~ ${(end + 1) % 24}`;
-                    // 내일 정보일 때는 총 가능 시간을 보여줌
                     durationValue.innerText = `${totalAvailableHours}h`;
                 } else {
                     timeDisplay.innerText = "내일 없음";
                     durationValue.innerText = "0h";
                 }
             } else {
-                card.classList.replace("golden-card-tomorrow", "golden-card-today");
                 title.innerText = "Today's Golden Time";
                 tag.innerText = "Best Time";
                 
@@ -310,19 +313,23 @@
                     const endTimeHour = end + 1;
                     
                     if (nowH >= start && nowH < endTimeHour) {
-                        // [수정] 현재 진행 중일 때: 종료 시간까지의 "남은 시간"을 available 하단에 표시
+                        // [골든타임 중] 오렌지-레드
+                        card.classList.add("golden-card-today");
                         const diffMin = (endTimeHour * 60) - (nowH * 60 + nowM);
                         const h = Math.floor(diffMin / 60);
                         const m = diffMin % 60;
                         durationValue.innerText = h > 0 ? `${h}h ${m}m` : `${m}m`;
                     } else if (nowH < start) {
-                        // 시작 전일 때: 총 가능 시간을 표시
+                        // [골든타임 전] 골드-앰버
+                        card.classList.add("golden-card-wait");
                         durationValue.innerText = `${totalAvailableHours}h`;
                     } else {
-                        // 오늘 끝났을 때 (로직상 진입 안 하지만 방어 코드)
+                        // 오늘 끝났을 경우 (위의 useTomorrow 로직에서 이미 처리되지만 방어 코드)
+                        card.classList.add("golden-card-tomorrow");
                         durationValue.innerText = "0h";
                     }
                 } else {
+                    card.classList.add("golden-card-tomorrow");
                     timeDisplay.innerText = "오늘 없음";
                     durationValue.innerText = "0h";
                 }
