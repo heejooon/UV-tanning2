@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UV & Weather Tracker Hybrid v6</title>
+    <title>UV & Weather Tracker Hybrid v6.1</title>
     <meta name="theme-color" content="#FF8A00"/>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -30,9 +30,9 @@
         canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
         
-        /* [Theme] Golden Time Card - Waiting (Gold-Amber) */
+        /* [Theme] Golden Time Card - Waiting (Bright Vibrant Gold) */
         .golden-card-wait {
-            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            background: linear-gradient(135deg, #FFD600 0%, #FF9900 100%);
         }
         /* [Theme] Golden Time Card - Active (Orange-Red) */
         .golden-card-today {
@@ -289,7 +289,6 @@
             const tag = document.getElementById("goldenTag");
             const durationValue = document.getElementById("totalDurationValue");
 
-            // 카드 테마 초기화
             card.classList.remove("golden-card-wait", "golden-card-today", "golden-card-tomorrow");
 
             if (useTomorrow) {
@@ -313,18 +312,15 @@
                     const endTimeHour = end + 1;
                     
                     if (nowH >= start && nowH < endTimeHour) {
-                        // [골든타임 중] 오렌지-레드
                         card.classList.add("golden-card-today");
                         const diffMin = (endTimeHour * 60) - (nowH * 60 + nowM);
                         const h = Math.floor(diffMin / 60);
                         const m = diffMin % 60;
                         durationValue.innerText = h > 0 ? `${h}h ${m}m` : `${m}m`;
                     } else if (nowH < start) {
-                        // [골든타임 전] 골드-앰버
                         card.classList.add("golden-card-wait");
                         durationValue.innerText = `${totalAvailableHours}h`;
                     } else {
-                        // 오늘 끝났을 경우 (위의 useTomorrow 로직에서 이미 처리되지만 방어 코드)
                         card.classList.add("golden-card-tomorrow");
                         durationValue.innerText = "0h";
                     }
