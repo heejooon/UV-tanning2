@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UV & Weather Tracker Hybrid v6.4</title>
+    <title>UV & Weather Tracker Hybrid v6.5</title>
     <meta name="theme-color" content="#FF8A00"/>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -30,7 +30,6 @@
         canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
         
-        /* [Theme] Golden Time Card */
         .golden-card-wait { background: linear-gradient(135deg, #FFD600 0%, #FF9900 100%); }
         .golden-card-today { background: linear-gradient(135deg, #FF8A00 0%, #E11D48 100%); }
         .golden-card-tomorrow { background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 45%, #0F172A 85%, #020617 100%); }
@@ -87,14 +86,12 @@
             
             <div class="flex flex-col items-end text-right">
                 <span class="text-[10px] font-normal opacity-80 lowercase tracking-widest leading-none mb-1">available</span>
-                <!-- 숫자와 단위 스타일 완벽 통일 (동일한 굵기 및 크기) -->
                 <span id="totalDurationValue" class="text-5xl font-black tracking-tighter leading-none">--</span>
             </div>
         </div>
 
         <div class="flex items-end justify-between mt-4">
             <div class="flex flex-col">
-                <!-- 텍스트 사이즈 대폭 확대: text-7xl -->
                 <div id="goldenTime" class="text-7xl font-normal tracking-tighter leading-none italic">-- ~ --</div>
                 <div class="mt-4 flex items-center gap-2">
                     <span id="goldenTag" class="px-2 py-0.5 bg-white/20 rounded text-[9px] font-bold tracking-widest uppercase">Best Time</span>
@@ -193,7 +190,10 @@
             try {
                 const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&current=temperature_2m,uv_index,weather_code&hourly=uv_index,temperature_2m,weather_code&daily=uv_index_max,weather_code&timezone=Asia%2FSeoul`);
                 const data = await res.json();
-                const nowHour = new Date().getHours();
+                
+                const now = new Date();
+                const nowHour = now.getHours();
+                const nowMin = now.getMinutes();
 
                 uvData = [...data.hourly.uv_index];
                 tempData = [...data.hourly.temperature_2m];
@@ -204,11 +204,23 @@
                 displayTemp = [...tempData];
                 displayWeather = [...hourlyWeather];
 
-                displayUV[nowHour] = data.current.uv_index;
-                displayTemp[nowHour] = data.current.temperature_2m;
-                displayWeather[nowHour] = data.current.weather_code;
-                
-                updateUI(data.current);
+                // [보정 로직 추가] 
+                // 현재 시각의 '분'을 고려하여 현재 시간과 다음 시간 사이의 값을 선형 보간합니다.
+                const currentUv = data.hourly.uv_index[nowHour];
+                const nextUv = data.hourly.uv_index[nowHour + 1] || currentUv;
+                const interpolatedUv = currentUv + (nextUv - currentUv) * (nowMin / 60);
+
+                const currentT = data.hourly.temperature_2m[nowHour];
+                const nextT = data.hourly.temperature_2m[nowHour + 1] || currentT;
+                const interpolatedTemp = currentT + (nextT - currentT) * (nowMin / 60);
+
+                // UI 업데이트 시 보간된 '진짜 실시간' 값 전달
+                updateUI({
+                    uv_index: interpolatedUv,
+                    temperature_2m: interpolatedTemp,
+                    weather_code: data.current.weather_code
+                });
+
                 renderWeekly();
                 
                 const startIdx = Math.max(0, nowHour - 3); 
@@ -227,7 +239,6 @@
             }
         }
 
-        // 숫자와 단위 스타일을 완벽하게 동일하게 복구
         function renderDurationHtml(element, hours, minutes = 0) {
             let html = "";
             if (hours > 0) {
@@ -244,6 +255,7 @@
             const nowH = now.getHours();
             const nowM = now.getMinutes();
 
+            // 보간된 값이 적용된 8xl 텍스트
             document.getElementById("uvValue").innerText = current.uv_index.toFixed(1);
             document.getElementById("currentTemp").innerText = Math.round(current.temperature_2m) + "°";
             document.getElementById("currentWeatherDesc").innerText = getWeatherDesc(current.weather_code);
