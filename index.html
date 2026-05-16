@@ -83,17 +83,18 @@
 
     <!-- Golden Time Card -->
     <div id="goldenTimeCard" class="card p-6 mb-4 golden-card-today text-white border-none transition-colors duration-700">
-        <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center gap-2">
+        <div class="flex items-start justify-between mb-6">
+            <div class="flex items-center gap-2 mt-1">
                 <div class="w-1.5 h-4 bg-white/40 rounded-full"></div>
                 <h2 id="goldenTitle" class="text-[11px] font-semibold uppercase tracking-[0.2em] opacity-90">Today's Golden Time</h2>
             </div>
             
             <div class="flex flex-col items-end">
                 <div class="flex flex-col items-end gap-1">
-                    <span id="timeLeftBadge" class="hidden text-[9px] font-medium opacity-90 uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded">--:-- LEFT</span>
-                    <div id="totalDurationContainer" class="flex flex-col items-end leading-[1.1]">
-                        <span class="text-[9px] font-bold opacity-70 lowercase tracking-tighter">available</span>
+                    <span id="timeLeftBadge" class="hidden text-[9px] font-medium opacity-90 uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded mb-1">--:-- LEFT</span>
+                    <!-- 겹침 방지를 위해 space-y-0.5 부여 및 leading 조절 -->
+                    <div id="totalDurationContainer" class="flex flex-col items-end space-y-0.5">
+                        <span class="text-[9px] font-bold opacity-70 lowercase tracking-tighter leading-none">available</span>
                         <span id="totalDurationValue" class="text-2xl font-extralight opacity-90 tracking-tighter leading-none">--h</span>
                     </div>
                 </div>
@@ -139,7 +140,6 @@
     <!-- Weekly Forecast -->
     <div class="card p-7 mb-4">
         <div class="flex items-center justify-between mb-6">
-            <!-- font-black/semibold 제거하고 font-normal로 변경 -->
             <h2 class="text-slate-800 font-normal text-xl flex items-center gap-2.5 tracking-tight">
                 <i data-lucide="calendar-days" class="w-6 h-6 text-blue-500"></i>
                 주간 태닝 예보
