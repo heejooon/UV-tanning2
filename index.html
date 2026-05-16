@@ -34,7 +34,7 @@
         .golden-card-today {
             background: linear-gradient(135deg, #FF8A00 0%, #E11D48 100%);
         }
-        /* [Theme] Golden Time Card - Tomorrow (Smoother Navy-Black Gradient) */
+        /* [Theme] Golden Time Card - Tomorrow (Navy-Black) */
         .golden-card-tomorrow {
             background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 45%, #0F172A 85%, #020617 100%);
         }
@@ -92,7 +92,6 @@
             <div class="flex flex-col items-end">
                 <div class="flex flex-col items-end gap-1">
                     <span id="timeLeftBadge" class="hidden text-[9px] font-medium opacity-90 uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded">--:-- LEFT</span>
-                    <!-- Modified layout: Available on top, Time value on bottom -->
                     <div id="totalDurationContainer" class="flex flex-col items-end leading-[1.1]">
                         <span class="text-[9px] font-bold opacity-70 lowercase tracking-tighter">available</span>
                         <span id="totalDurationValue" class="text-2xl font-extralight opacity-90 tracking-tighter leading-none">--h</span>
@@ -140,7 +139,8 @@
     <!-- Weekly Forecast -->
     <div class="card p-7 mb-4">
         <div class="flex items-center justify-between mb-6">
-            <h2 class="text-slate-800 font-black text-xl flex items-center gap-2.5 tracking-tight">
+            <!-- font-black/semibold 제거하고 font-normal로 변경 -->
+            <h2 class="text-slate-800 font-normal text-xl flex items-center gap-2.5 tracking-tight">
                 <i data-lucide="calendar-days" class="w-6 h-6 text-blue-500"></i>
                 주간 태닝 예보
             </h2>
@@ -268,13 +268,13 @@
             
             let start = -1, end = -1;
             let peakVal = 0;
-            let peakTime = 0;
+            let peakTimeAbs = 0; 
             let totalAvailableHours = 0;
 
             for (let i = startSearch; i < endSearch; i++) {
                 const uv = displayUV[i];
                 const weather = displayWeather[i];
-                if (uv > peakVal) { peakVal = uv; peakTime = i; }
+                if (uv > peakVal) { peakVal = uv; peakTimeAbs = i; }
                 if (uv >= 6 && !isBadWeather(weather)) {
                     if (start === -1) start = i;
                     end = i;
@@ -289,7 +289,7 @@
             const timeBadge = document.getElementById("timeLeftBadge");
             const durationValue = document.getElementById("totalDurationValue");
 
-            if (useTomorrow && isTodayOver) {
+            if (useTomorrow) {
                 card.classList.replace("golden-card-today", "golden-card-tomorrow");
                 title.innerText = "Tomorrow's Golden Time";
                 tag.innerText = "Next Opportunity";
@@ -333,7 +333,7 @@
             }
 
             document.getElementById("peakUvValue").innerText = peakVal.toFixed(1);
-            document.getElementById("peakTimeValue").innerText = `${peakTime % 24}:00`;
+            document.getElementById("peakTimeValue").innerText = `${peakTimeAbs % 24}:00`;
 
             const badge = document.getElementById("uvBadge");
             const desc = document.getElementById("uvDesc");
@@ -366,7 +366,8 @@
             const canvas = document.getElementById(id); if (!canvas) return;
             const ctx = canvas.getContext("2d"); const wrapper = canvas.parentElement; const dpr = window.devicePixelRatio || 1;
             const step = 45; const px = 24; const totalWidth = (uvs.length - 1) * step + (px * 2); const h = 210;
-            canvas.style.width = totalWidth + "px"; canvas.width = totalWidth * dpr; canvas.height = h * dpr; ctx.scale(dpr, dpr);
+            canvas.style.width = totalWidth + "px"; canvas.width = totalWidth * dpr; canvas.height = h * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0); 
             const nowH = new Date().getHours(); ctx.clearRect(0, 0, totalWidth, h);
             uvs.forEach((uv, i) => {
                 const x = px + i * step; const isRealNow = isToday && (startTime + i) === nowH; const isGolden = uv >= 6 && !isBadWeather(codes[i]);
