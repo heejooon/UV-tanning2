@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UV & Weather Tracker Hybrid v4</title>
+    <title>UV & Weather Tracker Hybrid v5</title>
     <meta name="theme-color" content="#FF8A00"/>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; -webkit-tap-highlight-color: transparent; }
         .card { background: white; border-radius: 28px; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04); overflow: hidden; border: 1px solid rgba(0,0,0,0.02); }
@@ -34,9 +34,9 @@
         .golden-card-today {
             background: linear-gradient(135deg, #FF8A00 0%, #E11D48 100%);
         }
-        /* [Theme] Golden Time Card - Tomorrow (Brightened Blue) */
+        /* [Theme] Golden Time Card - Tomorrow (Smoother Navy-Black Gradient) */
         .golden-card-tomorrow {
-            background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+            background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 45%, #0F172A 85%, #020617 100%);
         }
     </style>
 </head>
@@ -88,12 +88,16 @@
                 <div class="w-1.5 h-4 bg-white/40 rounded-full"></div>
                 <h2 id="goldenTitle" class="text-[11px] font-semibold uppercase tracking-[0.2em] opacity-90">Today's Golden Time</h2>
             </div>
-            <!-- Total Duration Display (Increased size to text-xs, font-normal) -->
-            <div id="totalDuration" class="text-xs font-normal opacity-90 tracking-tight">
-                --h available
-            </div>
-            <div id="timeLeftBadge" class="hidden px-2.5 py-1 bg-black/20 rounded-full text-[10px] font-bold tracking-tight">
-                --:-- LEFT
+            
+            <div class="flex flex-col items-end">
+                <!-- Redesigned totalDuration to match Peak UV style: Large thin number + Small label -->
+                <div id="totalDurationContainer" class="flex items-center gap-2">
+                    <span id="totalDurationValue" class="text-4xl font-light opacity-90 tracking-tighter leading-none">--h</span>
+                    <div class="flex flex-col items-start leading-tight">
+                        <span class="text-[9px] font-bold opacity-70 uppercase tracking-tighter">Available</span>
+                        <span id="timeLeftBadge" class="hidden text-[10px] font-medium opacity-90">--:-- LEFT</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -111,7 +115,7 @@
                     <div class="flex items-center gap-2">
                         <span id="peakUvValue" class="text-4xl font-black leading-none">--</span>
                         <div class="flex flex-col items-start leading-tight">
-                            <span class="text-[9px] font-bold opacity-80">INDEX</span>
+                            <span class="text-[9px] font-bold opacity-80 uppercase tracking-tighter">Index</span>
                             <span id="peakTimeValue" class="text-[11px] font-medium opacity-90">--:00</span>
                         </div>
                     </div>
@@ -284,7 +288,7 @@
             const timeDisplay = document.getElementById("goldenTime");
             const tag = document.getElementById("goldenTag");
             const timeBadge = document.getElementById("timeLeftBadge");
-            const durationDisplay = document.getElementById("totalDuration");
+            const durationValue = document.getElementById("totalDurationValue");
 
             if (useTomorrow && isTodayOver) {
                 card.classList.replace("golden-card-today", "golden-card-tomorrow");
@@ -294,10 +298,10 @@
                 
                 if (start !== -1) {
                     timeDisplay.innerText = `${start % 24} ~ ${(end + 1) % 24}`;
-                    durationDisplay.innerText = `${totalAvailableHours}h available tomorrow`;
+                    durationValue.innerText = `${totalAvailableHours}h`;
                 } else {
                     timeDisplay.innerText = "내일 없음";
-                    durationDisplay.innerText = "0h available";
+                    durationValue.innerText = "0h";
                 }
             } else {
                 card.classList.replace("golden-card-tomorrow", "golden-card-today");
@@ -306,7 +310,7 @@
                 
                 if (start !== -1) {
                     timeDisplay.innerText = `${start} ~ ${end + 1}`;
-                    durationDisplay.innerText = `${totalAvailableHours}h available today`;
+                    durationValue.innerText = `${totalAvailableHours}h`;
                     timeBadge.classList.remove("hidden");
                     const endTimeHour = end + 1;
                     if (nowH >= start && nowH < endTimeHour) {
@@ -314,17 +318,17 @@
                         const h = Math.floor(diffMin / 60);
                         const m = diffMin % 60;
                         timeBadge.innerText = h > 0 ? `${h}h ${m}m LEFT` : `${m}m LEFT`;
-                        timeBadge.className = "px-2.5 py-1 bg-white/30 rounded-full text-[10px] font-bold tracking-tight animate-pulse";
                     } else if (nowH < start) {
                         const diffMin = (start * 60) - (nowH * 60 + nowM);
                         const h = Math.floor(diffMin / 60);
                         const m = diffMin % 60;
-                        timeBadge.innerText = h > 0 ? `STARTS IN ${h}h` : `STARTS IN ${m}m`;
-                        timeBadge.className = "px-2.5 py-1 bg-black/20 rounded-full text-[10px] font-bold tracking-tight opacity-80";
+                        timeBadge.innerText = h > 0 ? `IN ${h}h` : `IN ${m}m`;
+                    } else {
+                        timeBadge.classList.add("hidden");
                     }
                 } else {
                     timeDisplay.innerText = "오늘 없음";
-                    durationDisplay.innerText = "0h available";
+                    durationValue.innerText = "0h";
                     timeBadge.classList.add("hidden");
                 }
             }
