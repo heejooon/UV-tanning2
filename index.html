@@ -87,15 +87,16 @@
             
             <div class="flex flex-col items-end text-right">
                 <span class="text-[10px] font-normal opacity-80 lowercase tracking-widest leading-none mb-1">available</span>
-                <span id="totalDurationValue" class="text-5xl tracking-tighter leading-none">--</span>
+                <!-- 숫자와 단위 스타일 완벽 통일 (동일한 굵기 및 크기) -->
+                <span id="totalDurationValue" class="text-5xl font-black tracking-tighter leading-none">--</span>
             </div>
         </div>
 
         <div class="flex items-end justify-between mt-4">
             <div class="flex flex-col">
-                <!-- 복구된 폰트 사이즈: 5xl -->
-                <div id="goldenTime" class="text-5xl font-normal tracking-tighter leading-none italic">-- ~ --</div>
-                <div class="mt-3 flex items-center gap-2">
+                <!-- 텍스트 사이즈 대폭 확대: text-7xl -->
+                <div id="goldenTime" class="text-7xl font-normal tracking-tighter leading-none italic">-- ~ --</div>
+                <div class="mt-4 flex items-center gap-2">
                     <span id="goldenTag" class="px-2 py-0.5 bg-white/20 rounded text-[9px] font-bold tracking-widest uppercase">Best Time</span>
                 </div>
             </div>
@@ -226,14 +227,14 @@
             }
         }
 
-        // Helper to format duration with mixed weights
-        function setDurationHtml(element, hours, minutes = 0) {
+        // 숫자와 단위 스타일을 완벽하게 동일하게 복구
+        function renderDurationHtml(element, hours, minutes = 0) {
             let html = "";
             if (hours > 0) {
-                html += `<span class="font-black">${hours}</span><span class="font-normal text-[20px] opacity-70 ml-0.5 mr-1">h</span>`;
+                html += `${hours}h `;
             }
             if (minutes > 0 || (hours === 0 && minutes === 0)) {
-                html += `<span class="font-black">${minutes}</span><span class="font-normal text-[20px] opacity-70 ml-0.5">m</span>`;
+                html += `${minutes}m`;
             }
             element.innerHTML = html;
         }
@@ -293,10 +294,10 @@
                 
                 if (start !== -1) {
                     timeDisplay.innerText = `${start % 24} ~ ${(end + 1) % 24}`;
-                    setDurationHtml(durationValue, totalAvailableHours);
+                    renderDurationHtml(durationValue, totalAvailableHours);
                 } else {
                     timeDisplay.innerText = "내일 없음";
-                    setDurationHtml(durationValue, 0);
+                    renderDurationHtml(durationValue, 0);
                 }
             } else {
                 title.innerText = "Today's Golden Time";
@@ -311,18 +312,18 @@
                         const diffMin = (endTimeHour * 60) - (nowH * 60 + nowM);
                         const h = Math.floor(diffMin / 60);
                         const m = diffMin % 60;
-                        setDurationHtml(durationValue, h, m);
+                        renderDurationHtml(durationValue, h, m);
                     } else if (nowH < start) {
                         card.classList.add("golden-card-wait");
-                        setDurationHtml(durationValue, totalAvailableHours);
+                        renderDurationHtml(durationValue, totalAvailableHours);
                     } else {
                         card.classList.add("golden-card-tomorrow");
-                        setDurationHtml(durationValue, 0);
+                        renderDurationHtml(durationValue, 0);
                     }
                 } else {
                     card.classList.add("golden-card-tomorrow");
                     timeDisplay.innerText = "오늘 없음";
-                    setDurationHtml(durationValue, 0);
+                    renderDurationHtml(durationValue, 0);
                 }
             }
 
