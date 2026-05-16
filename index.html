@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UV & Weather Tracker Hybrid</title>
+    <title>UV & Weather Tracker Hybrid v4</title>
     <meta name="theme-color" content="#FF8A00"/>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -30,8 +30,13 @@
         canvas { display: block; height: 210px !important; }
         .btn-update { background: #FF8A00; box-shadow: 0 4px 12px rgba(255, 138, 0, 0.3); }
         
-        .golden-card-bg {
+        /* [Theme] Golden Time Card - Today (Orange-Red) */
+        .golden-card-today {
             background: linear-gradient(135deg, #FF8A00 0%, #E11D48 100%);
+        }
+        /* [Theme] Golden Time Card - Tomorrow (Brightened Blue) */
+        .golden-card-tomorrow {
+            background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
         }
     </style>
 </head>
@@ -77,17 +82,26 @@
     </div>
 
     <!-- Golden Time Card -->
-    <div id="goldenTimeCard" class="card p-6 mb-4 golden-card-bg text-white border-none">
-        <div class="flex items-center gap-2 mb-6">
-            <div class="w-1.5 h-4 bg-white/40 rounded-full"></div>
-            <h2 class="text-[11px] font-semibold uppercase tracking-[0.2em] opacity-90">Today's Golden Time</h2>
+    <div id="goldenTimeCard" class="card p-6 mb-4 golden-card-today text-white border-none transition-colors duration-700">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-2">
+                <div class="w-1.5 h-4 bg-white/40 rounded-full"></div>
+                <h2 id="goldenTitle" class="text-[11px] font-semibold uppercase tracking-[0.2em] opacity-90">Today's Golden Time</h2>
+            </div>
+            <!-- Total Duration Display (Increased size to text-xs, font-normal) -->
+            <div id="totalDuration" class="text-xs font-normal opacity-90 tracking-tight">
+                --h available
+            </div>
+            <div id="timeLeftBadge" class="hidden px-2.5 py-1 bg-black/20 rounded-full text-[10px] font-bold tracking-tight">
+                --:-- LEFT
+            </div>
         </div>
 
         <div class="flex items-end justify-between">
             <div class="flex flex-col">
                 <div id="goldenTime" class="text-6xl font-black tracking-tighter leading-none italic">-- ~ --</div>
                 <div class="mt-3 flex items-center gap-2">
-                    <span class="px-2 py-0.5 bg-white/20 rounded text-[9px] font-bold tracking-widest uppercase">Best Time</span>
+                    <span id="goldenTag" class="px-2 py-0.5 bg-white/20 rounded text-[9px] font-bold tracking-widest uppercase">Best Time</span>
                 </div>
             </div>
             
@@ -135,12 +149,8 @@
 
     <script>
         // Global States (Hybrid Model)
-        // [FORECAST LAYER] - 절대불변
         let uvData = [], tempData = [], hourlyWeather = [], weeklyData = [];
-        
-        // [DISPLAY LAYER] - 실시간 보정 Overlay용
         let displayUV = [], displayTemp = [], displayWeather = [];
-        
         let currentLat = 37.5038, currentLon = 126.7535;
 
         const weatherIcons = {
@@ -196,30 +206,25 @@
                 
                 const nowHour = new Date().getHours();
 
-                // 1. Immutable Data Store (Forecast Layer) - 원본 보호
                 uvData = [...data.hourly.uv_index];
                 tempData = [...data.hourly.temperature_2m];
                 hourlyWeather = [...data.hourly.weather_code];
                 weeklyData = data.daily;
 
-                // 2. Display Layer (Hybrid Model) - Overlay 전용
                 displayUV = [...uvData];
                 displayTemp = [...tempData];
                 displayWeather = [...hourlyWeather];
 
-                // 현재 시간만 Override (Display Layer만 수정)
                 displayUV[nowHour] = data.current.uv_index;
                 displayTemp[nowHour] = data.current.temperature_2m;
                 displayWeather[nowHour] = data.current.weather_code;
                 
-                // 3. UI/Logic Update - 모든 데이터 소스를 Display Layer로 변경
                 updateUI(data.current);
                 renderWeekly();
                 
                 const startIdx = Math.max(0, nowHour - 3); 
                 const endIdx = startIdx + 24; 
                 
-                // Chart 등 모든 시각화에 Display Layer 사용
                 drawScrollableChart("uvChart", displayUV.slice(startIdx, endIdx), displayTemp.slice(startIdx, endIdx), displayWeather.slice(startIdx, endIdx), startIdx, true);
                 fetchLocationName(currentLat, currentLon);
             } catch (e) {
@@ -235,36 +240,99 @@
 
         function updateUI(current) {
             const now = new Date();
-            // Header UI는 실시간 수치 직접 반영
+            const nowH = now.getHours();
+            const nowM = now.getMinutes();
+
             document.getElementById("uvValue").innerText = current.uv_index.toFixed(1);
             document.getElementById("currentTemp").innerText = Math.round(current.temperature_2m) + "°";
             document.getElementById("currentWeatherDesc").innerText = getWeatherDesc(current.weather_code);
-            document.getElementById("lastUpdate").innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+            document.getElementById("lastUpdate").innerText = nowH.toString().padStart(2, '0') + ":" + nowM.toString().padStart(2, '0');
+            
+            // 1. Today's Golden Time Check
+            let todayStart = -1, todayEnd = -1;
+            for (let i = 0; i < 24; i++) {
+                if (displayUV[i] >= 6 && !isBadWeather(displayWeather[i])) {
+                    if (todayStart === -1) todayStart = i;
+                    todayEnd = i;
+                }
+            }
+
+            const isTodayOver = todayEnd !== -1 && nowH >= (todayEnd + 1);
+            const useTomorrow = isTodayOver || todayStart === -1;
+
+            const startSearch = useTomorrow ? 24 : 0;
+            const endSearch = useTomorrow ? 48 : 24;
             
             let start = -1, end = -1;
             let peakVal = 0;
             let peakTime = 0;
+            let totalAvailableHours = 0;
 
-            // Logic Calculation: 오직 DISPLAY LAYER 참조 (uvData 사용 금지)
-            for (let i = 0; i < 24; i++) {
-                const currentUv = displayUV[i];
-                const currentWeather = displayWeather[i];
-
-                if (currentUv > peakVal) {
-                    peakVal = currentUv;
-                    peakTime = i;
-                }
-                // 태닝 판단 로직 (Bad weather 체크 포함)
-                if (currentUv >= 6 && !isBadWeather(currentWeather)) {
+            for (let i = startSearch; i < endSearch; i++) {
+                const uv = displayUV[i];
+                const weather = displayWeather[i];
+                if (uv > peakVal) { peakVal = uv; peakTime = i; }
+                if (uv >= 6 && !isBadWeather(weather)) {
                     if (start === -1) start = i;
                     end = i;
+                    totalAvailableHours++;
                 }
             }
-            
-            document.getElementById("goldenTime").innerText = start !== -1 ? `${start} ~ ${end + 1}` : "오늘 없음";
-            document.getElementById("peakUvValue").innerText = peakVal.toFixed(1);
-            document.getElementById("peakTimeValue").innerText = `${peakTime}:00`;
 
+            const card = document.getElementById("goldenTimeCard");
+            const title = document.getElementById("goldenTitle");
+            const timeDisplay = document.getElementById("goldenTime");
+            const tag = document.getElementById("goldenTag");
+            const timeBadge = document.getElementById("timeLeftBadge");
+            const durationDisplay = document.getElementById("totalDuration");
+
+            if (useTomorrow && isTodayOver) {
+                card.classList.replace("golden-card-today", "golden-card-tomorrow");
+                title.innerText = "Tomorrow's Golden Time";
+                tag.innerText = "Next Opportunity";
+                timeBadge.classList.add("hidden");
+                
+                if (start !== -1) {
+                    timeDisplay.innerText = `${start % 24} ~ ${(end + 1) % 24}`;
+                    durationDisplay.innerText = `${totalAvailableHours}h available tomorrow`;
+                } else {
+                    timeDisplay.innerText = "내일 없음";
+                    durationDisplay.innerText = "0h available";
+                }
+            } else {
+                card.classList.replace("golden-card-tomorrow", "golden-card-today");
+                title.innerText = "Today's Golden Time";
+                tag.innerText = "Best Time";
+                
+                if (start !== -1) {
+                    timeDisplay.innerText = `${start} ~ ${end + 1}`;
+                    durationDisplay.innerText = `${totalAvailableHours}h available today`;
+                    timeBadge.classList.remove("hidden");
+                    const endTimeHour = end + 1;
+                    if (nowH >= start && nowH < endTimeHour) {
+                        const diffMin = (endTimeHour * 60) - (nowH * 60 + nowM);
+                        const h = Math.floor(diffMin / 60);
+                        const m = diffMin % 60;
+                        timeBadge.innerText = h > 0 ? `${h}h ${m}m LEFT` : `${m}m LEFT`;
+                        timeBadge.className = "px-2.5 py-1 bg-white/30 rounded-full text-[10px] font-bold tracking-tight animate-pulse";
+                    } else if (nowH < start) {
+                        const diffMin = (start * 60) - (nowH * 60 + nowM);
+                        const h = Math.floor(diffMin / 60);
+                        const m = diffMin % 60;
+                        timeBadge.innerText = h > 0 ? `STARTS IN ${h}h` : `STARTS IN ${m}m`;
+                        timeBadge.className = "px-2.5 py-1 bg-black/20 rounded-full text-[10px] font-bold tracking-tight opacity-80";
+                    }
+                } else {
+                    timeDisplay.innerText = "오늘 없음";
+                    durationDisplay.innerText = "0h available";
+                    timeBadge.classList.add("hidden");
+                }
+            }
+
+            document.getElementById("peakUvValue").innerText = peakVal.toFixed(1);
+            document.getElementById("peakTimeValue").innerText = `${peakTime % 24}:00`;
+
+            // Current UV Badge
             const badge = document.getElementById("uvBadge");
             const desc = document.getElementById("uvDesc");
             const uv = current.uv_index;
@@ -280,8 +348,6 @@
                 desc.innerText = "자외선 지수가 낮습니다. 태닝 효율이 떨어집니다.";
             }
         }
-
-        // --- 기타 렌더링 함수들 (이전과 동일하게 유지되나 display layer 데이터를 인자로 받음) ---
 
         function drawWeatherIconOnChart(ctx, x, y, code) {
             const config = weatherIcons[code] || { icon: "sun", color: "#FFB800" };
@@ -334,10 +400,7 @@
         function toggleDay(i) {
             const content = document.getElementById(`content-${i}`); const arrow = document.getElementById(`arrow-${i}`); const isOpen = content.classList.contains('open');
             document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open')); document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
-            if (!isOpen) { content.classList.add('open'); arrow.classList.add('rotate-180'); setTimeout(() => { const startIdx = i * 24; 
-                // 주간 상세 차트 역시 Display Layer 기반으로 렌더링
-                drawScrollableChart(`chart-${i}`, displayUV.slice(startIdx, startIdx + 24), displayTemp.slice(startIdx, startIdx + 24), displayWeather.slice(startIdx, startIdx + 24), 0, false); 
-            }, 100); }
+            if (!isOpen) { content.classList.add('open'); arrow.classList.add('rotate-180'); setTimeout(() => { const startIdx = i * 24; drawScrollableChart(`chart-${i}`, displayUV.slice(startIdx, startIdx + 24), displayTemp.slice(startIdx, startIdx + 24), displayWeather.slice(startIdx, startIdx + 24), 0, false); }, 100); }
         }
 
         async function fetchLocationName(lat, lon) {
