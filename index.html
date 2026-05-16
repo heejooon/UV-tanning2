@@ -134,7 +134,13 @@
     </div>
 
     <script>
+        // Global States (Hybrid Model)
+        // [FORECAST LAYER] - 절대불변
         let uvData = [], tempData = [], hourlyWeather = [], weeklyData = [];
+        
+        // [DISPLAY LAYER] - 실시간 보정 Overlay용
+        let displayUV = [], displayTemp = [], displayWeather = [];
+        
         let currentLat = 37.5038, currentLon = 126.7535;
 
         const weatherIcons = {
@@ -171,7 +177,9 @@
         async function initLocation() {
             const btn = document.getElementById("updateBtn");
             const icon = document.getElementById("updateIcon");
-            btn.disabled = true; icon.classList.add("animate-spin");
+            if(btn) btn.disabled = true; 
+            if(icon) icon.classList.add("animate-spin");
+            
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => { currentLat = pos.coords.latitude; currentLon = pos.coords.longitude; fetchData(); },
@@ -183,70 +191,71 @@
 
         async function fetchData() {
             try {
-                // current 및 hourly 데이터를 동시에 가져옴
                 const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&current=temperature_2m,uv_index,weather_code&hourly=uv_index,temperature_2m,weather_code&daily=uv_index_max,weather_code&timezone=Asia%2FSeoul`);
                 const data = await res.json();
                 
-                const current = data.current;
                 const nowHour = new Date().getHours();
 
-                // 1. Hourly 데이터 기초 설정
-                uvData = data.hourly.uv_index;
-                tempData = data.hourly.temperature_2m;
-                hourlyWeather = data.hourly.weather_code;
+                // 1. Immutable Data Store (Forecast Layer) - 원본 보호
+                uvData = [...data.hourly.uv_index];
+                tempData = [...data.hourly.temperature_2m];
+                hourlyWeather = [...data.hourly.weather_code];
                 weeklyData = data.daily;
 
-                // 2. 핵심 요구사항: 현재 시간 index에 실시간(Current) 값 Override
-                // uvData[nowHour] = current.uv_index; 
-                // 단, uvData는 7일치(168시간) 데이터이므로 정확한 오늘 시간 인덱스를 찾아서 덮어씁니다.
-                uvData[nowHour] = current.uv_index;
-                tempData[nowHour] = current.temperature_2m;
-                hourlyWeather[nowHour] = current.weather_code;
+                // 2. Display Layer (Hybrid Model) - Overlay 전용
+                displayUV = [...uvData];
+                displayTemp = [...tempData];
+                displayWeather = [...hourlyWeather];
+
+                // 현재 시간만 Override (Display Layer만 수정)
+                displayUV[nowHour] = data.current.uv_index;
+                displayTemp[nowHour] = data.current.temperature_2m;
+                displayWeather[nowHour] = data.current.weather_code;
                 
-                // 3. UI 업데이트 및 골든타임/피크 계산 (수정된 uvData 기준)
-                updateUI(current);
+                // 3. UI/Logic Update - 모든 데이터 소스를 Display Layer로 변경
+                updateUI(data.current);
                 renderWeekly();
                 
                 const startIdx = Math.max(0, nowHour - 3); 
                 const endIdx = startIdx + 24; 
-                drawScrollableChart("uvChart", uvData.slice(startIdx, endIdx), tempData.slice(startIdx, endIdx), hourlyWeather.slice(startIdx, endIdx), startIdx, true);
+                
+                // Chart 등 모든 시각화에 Display Layer 사용
+                drawScrollableChart("uvChart", displayUV.slice(startIdx, endIdx), displayTemp.slice(startIdx, endIdx), displayWeather.slice(startIdx, endIdx), startIdx, true);
                 fetchLocationName(currentLat, currentLon);
             } catch (e) {
                 console.error(e);
             } finally {
-                document.getElementById("updateBtn").disabled = false;
-                document.getElementById("updateIcon").classList.remove("animate-spin");
+                const btn = document.getElementById("updateBtn");
+                const icon = document.getElementById("updateIcon");
+                if(btn) btn.disabled = false;
+                if(icon) icon.classList.remove("animate-spin");
                 lucide.createIcons();
             }
         }
 
         function updateUI(current) {
             const now = new Date();
-            // UI 현재값은 명시적으로 current.uv_index 사용
-            const uv = current.uv_index || 0;
-            const temp = current.temperature_2m || 0;
-            const code = current.weather_code || 0;
-
-            document.getElementById("uvValue").innerText = uv.toFixed(1);
-            document.getElementById("currentTemp").innerText = Math.round(temp) + "°";
-            document.getElementById("currentWeatherDesc").innerText = getWeatherDesc(code);
+            // Header UI는 실시간 수치 직접 반영
+            document.getElementById("uvValue").innerText = current.uv_index.toFixed(1);
+            document.getElementById("currentTemp").innerText = Math.round(current.temperature_2m) + "°";
+            document.getElementById("currentWeatherDesc").innerText = getWeatherDesc(current.weather_code);
             document.getElementById("lastUpdate").innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
             
-            // 골든타임 및 피크 계산 (Override된 uvData 사용)
             let start = -1, end = -1;
             let peakVal = 0;
             let peakTime = 0;
 
-            // 오늘 0시부터 23시까지 루프 (uvData의 첫 24개 항목)
+            // Logic Calculation: 오직 DISPLAY LAYER 참조 (uvData 사용 금지)
             for (let i = 0; i < 24; i++) {
-                const currentUv = uvData[i] || 0;
-                // Peak 계산 (현재 시간의 current 값이 반영된 상태)
+                const currentUv = displayUV[i];
+                const currentWeather = displayWeather[i];
+
                 if (currentUv > peakVal) {
                     peakVal = currentUv;
                     peakTime = i;
                 }
-                // Golden Time 계산 (현재 시간의 current 값이 반영된 상태)
-                if (currentUv >= 6 && !isBadWeather(hourlyWeather[i])) {
+                // 태닝 판단 로직 (Bad weather 체크 포함)
+                if (currentUv >= 6 && !isBadWeather(currentWeather)) {
                     if (start === -1) start = i;
                     end = i;
                 }
@@ -258,6 +267,8 @@
 
             const badge = document.getElementById("uvBadge");
             const desc = document.getElementById("uvDesc");
+            const uv = current.uv_index;
+
             if (uv >= 8) {
                 badge.innerText = "위험"; badge.className = "bg-red-500 text-white px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider relative -top-4";
                 desc.innerText = "자외선이 매우 강합니다. 노출을 자제하세요.";
@@ -269,6 +280,8 @@
                 desc.innerText = "자외선 지수가 낮습니다. 태닝 효율이 떨어집니다.";
             }
         }
+
+        // --- 기타 렌더링 함수들 (이전과 동일하게 유지되나 display layer 데이터를 인자로 받음) ---
 
         function drawWeatherIconOnChart(ctx, x, y, code) {
             const config = weatherIcons[code] || { icon: "sun", color: "#FFB800" };
@@ -321,7 +334,10 @@
         function toggleDay(i) {
             const content = document.getElementById(`content-${i}`); const arrow = document.getElementById(`arrow-${i}`); const isOpen = content.classList.contains('open');
             document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open')); document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
-            if (!isOpen) { content.classList.add('open'); arrow.classList.add('rotate-180'); setTimeout(() => { const startIdx = i * 24; drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, false); }, 100); }
+            if (!isOpen) { content.classList.add('open'); arrow.classList.add('rotate-180'); setTimeout(() => { const startIdx = i * 24; 
+                // 주간 상세 차트 역시 Display Layer 기반으로 렌더링
+                drawScrollableChart(`chart-${i}`, displayUV.slice(startIdx, startIdx + 24), displayTemp.slice(startIdx, startIdx + 24), displayWeather.slice(startIdx, startIdx + 24), 0, false); 
+            }, 100); }
         }
 
         async function fetchLocationName(lat, lon) {
