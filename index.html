@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UV & Weather Tracker v3</title>
+    <title>UV & Weather Tracker Hybrid</title>
     <meta name="theme-color" content="#FF8A00"/>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -56,7 +55,7 @@
         
         <div class="bg-slate-50 rounded-2xl px-3.5 py-2 mb-3 border border-slate-100/50">
             <p id="uvDesc" class="text-slate-600 text-[13px] font-normal leading-relaxed break-keep">
-                위치 정보를 확인하고 있습니다...
+                실시간 자외선 정보를 불러오고 있습니다...
             </p>
         </div>
 
@@ -140,8 +139,8 @@
 
         const weatherIcons = {
             0: { icon: "sun", color: "#FFB800" },
-            1: { icon: "cloud-sun", color: "#64748B" }, // Updated 'Partly Cloudy' to Slate Gray (closer to cloudy)
-            2: { icon: "cloud-sun", color: "#64748B" }, // Updated 'Partly Cloudy' to Slate Gray (closer to cloudy)
+            1: { icon: "cloud-sun", color: "#64748B" }, 
+            2: { icon: "cloud-sun", color: "#64748B" }, 
             3: { icon: "cloud", color: "#94A3B8" },
             45: { icon: "cloud-fog", color: "#94A3B8" },
             48: { icon: "cloud-fog", color: "#94A3B8" },
@@ -184,16 +183,31 @@
 
         async function fetchData() {
             try {
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&hourly=uv_index,temperature_2m,weather_code&daily=uv_index_max,weather_code&current_weather=true&timezone=Asia%2FSeoul`);
+                // current 및 hourly 데이터를 동시에 가져옴
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&current=temperature_2m,uv_index,weather_code&hourly=uv_index,temperature_2m,weather_code&daily=uv_index_max,weather_code&timezone=Asia%2FSeoul`);
                 const data = await res.json();
+                
+                const current = data.current;
+                const nowHour = new Date().getHours();
+
+                // 1. Hourly 데이터 기초 설정
                 uvData = data.hourly.uv_index;
                 tempData = data.hourly.temperature_2m;
                 hourlyWeather = data.hourly.weather_code;
                 weeklyData = data.daily;
-                updateUI(data.current_weather);
+
+                // 2. 핵심 요구사항: 현재 시간 index에 실시간(Current) 값 Override
+                // uvData[nowHour] = current.uv_index; 
+                // 단, uvData는 7일치(168시간) 데이터이므로 정확한 오늘 시간 인덱스를 찾아서 덮어씁니다.
+                uvData[nowHour] = current.uv_index;
+                tempData[nowHour] = current.temperature_2m;
+                hourlyWeather[nowHour] = current.weather_code;
+                
+                // 3. UI 업데이트 및 골든타임/피크 계산 (수정된 uvData 기준)
+                updateUI(current);
                 renderWeekly();
-                const nowH = new Date().getHours();
-                const startIdx = Math.max(0, nowH - 3); 
+                
+                const startIdx = Math.max(0, nowHour - 3); 
                 const endIdx = startIdx + 24; 
                 drawScrollableChart("uvChart", uvData.slice(startIdx, endIdx), tempData.slice(startIdx, endIdx), hourlyWeather.slice(startIdx, endIdx), startIdx, true);
                 fetchLocationName(currentLat, currentLon);
@@ -208,22 +222,30 @@
 
         function updateUI(current) {
             const now = new Date();
-            const hour = now.getHours();
-            const uv = uvData[hour] || 0;
+            // UI 현재값은 명시적으로 current.uv_index 사용
+            const uv = current.uv_index || 0;
+            const temp = current.temperature_2m || 0;
+            const code = current.weather_code || 0;
+
             document.getElementById("uvValue").innerText = uv.toFixed(1);
-            document.getElementById("currentTemp").innerText = Math.round(current.temperature) + "°";
-            document.getElementById("currentWeatherDesc").innerText = getWeatherDesc(current.weathercode);
+            document.getElementById("currentTemp").innerText = Math.round(temp) + "°";
+            document.getElementById("currentWeatherDesc").innerText = getWeatherDesc(code);
             document.getElementById("lastUpdate").innerText = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
             
+            // 골든타임 및 피크 계산 (Override된 uvData 사용)
             let start = -1, end = -1;
             let peakVal = 0;
             let peakTime = 0;
+
+            // 오늘 0시부터 23시까지 루프 (uvData의 첫 24개 항목)
             for (let i = 0; i < 24; i++) {
                 const currentUv = uvData[i] || 0;
+                // Peak 계산 (현재 시간의 current 값이 반영된 상태)
                 if (currentUv > peakVal) {
                     peakVal = currentUv;
                     peakTime = i;
                 }
+                // Golden Time 계산 (현재 시간의 current 값이 반영된 상태)
                 if (currentUv >= 6 && !isBadWeather(hourlyWeather[i])) {
                     if (start === -1) start = i;
                     end = i;
@@ -248,240 +270,62 @@
             }
         }
 
-        // Custom drawing function for chart weather icons
         function drawWeatherIconOnChart(ctx, x, y, code) {
             const config = weatherIcons[code] || { icon: "sun", color: "#FFB800" };
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.strokeStyle = config.color;
-            ctx.fillStyle = config.color;
-            ctx.lineWidth = 1.4;
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-
-            if (code === 0) { // Clear Sun
-                ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.stroke();
-                for(let a=0; a<360; a+=45) {
-                    const rad = a * Math.PI / 180;
-                    ctx.beginPath(); ctx.moveTo(Math.cos(rad)*5.5, Math.sin(rad)*5.5); ctx.lineTo(Math.cos(rad)*7.5, Math.sin(rad)*7.5); ctx.stroke();
-                }
-            } else if (code === 1 || code === 2) { // Partly Cloudy
-                ctx.save();
-                ctx.translate(2.5, -2.5);
-                ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.stroke();
-                for(let a=0; a<360; a+=90) {
-                    const rad = a * Math.PI / 180;
-                    ctx.beginPath(); ctx.moveTo(Math.cos(rad)*3.5, Math.sin(rad)*3.5); ctx.lineTo(Math.cos(rad)*4.5, Math.sin(rad)*4.5); ctx.stroke();
-                }
-                ctx.restore();
-                ctx.beginPath();
-                ctx.moveTo(-4, 2);
-                ctx.bezierCurveTo(-6, 2, -6, -1, -4, -1);
-                ctx.bezierCurveTo(-4, -3, -1, -3, 0, -1);
-                ctx.bezierCurveTo(1, -3, 4, -3, 4, -1);
-                ctx.bezierCurveTo(6, -1, 6, 2, 4, 2);
-                ctx.closePath();
-                ctx.fillStyle = "white"; ctx.fill(); 
-                ctx.stroke();
-            } else if (code === 3) { // Cloud
-                ctx.beginPath();
-                ctx.moveTo(-4, 2);
-                ctx.bezierCurveTo(-6, 2, -6, -1, -4, -1);
-                ctx.bezierCurveTo(-4, -3, -1, -3, 1, -1);
-                ctx.bezierCurveTo(3, -3, 6, -3, 6, -1);
-                ctx.bezierCurveTo(8, -1, 8, 2, 6, 2);
-                ctx.closePath();
-                ctx.stroke();
-            } else if (code >= 51 && code <= 82) { // Rain
-                ctx.beginPath();
-                ctx.moveTo(-4, 1);
-                ctx.bezierCurveTo(-6, 1, -6, -2, -4, -2);
-                ctx.bezierCurveTo(-4, -4, -1, -4, 1, -2);
-                ctx.bezierCurveTo(3, -4, 6, -4, 6, -2);
-                ctx.bezierCurveTo(8, -2, 8, 1, 6, 1);
-                ctx.closePath(); ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(-1, 4); ctx.lineTo(-2, 7);
-                ctx.moveTo(3, 4); ctx.lineTo(2, 7);
-                ctx.stroke();
-            } else { // Generic
-                ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
-            }
+            ctx.save(); ctx.translate(x, y); ctx.strokeStyle = config.color; ctx.fillStyle = config.color; ctx.lineWidth = 1.4; ctx.lineCap = "round"; ctx.lineJoin = "round";
+            if (code === 0) { ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.stroke(); for(let a=0; a<360; a+=45) { const rad = a * Math.PI / 180; ctx.beginPath(); ctx.moveTo(Math.cos(rad)*5.5, Math.sin(rad)*5.5); ctx.lineTo(Math.cos(rad)*7.5, Math.sin(rad)*7.5); ctx.stroke(); }
+            } else if (code === 1 || code === 2) { ctx.save(); ctx.translate(2.5, -2.5); ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.stroke(); for(let a=0; a<360; a+=90) { const rad = a * Math.PI / 180; ctx.beginPath(); ctx.moveTo(Math.cos(rad)*3.5, Math.sin(rad)*3.5); ctx.lineTo(Math.cos(rad)*4.5, Math.sin(rad)*4.5); ctx.stroke(); } ctx.restore(); ctx.beginPath(); ctx.moveTo(-4, 2); ctx.bezierCurveTo(-6, 2, -6, -1, -4, -1); ctx.bezierCurveTo(-4, -3, -1, -3, 0, -1); ctx.bezierCurveTo(1, -3, 4, -3, 4, -1); ctx.bezierCurveTo(6, -1, 6, 2, 4, 2); ctx.closePath(); ctx.fillStyle = "white"; ctx.fill(); ctx.stroke();
+            } else if (code === 3) { ctx.beginPath(); ctx.moveTo(-4, 2); ctx.bezierCurveTo(-6, 2, -6, -1, -4, -1); ctx.bezierCurveTo(-4, -3, -1, -3, 1, -1); ctx.bezierCurveTo(3, -3, 6, -3, 6, -1); ctx.bezierCurveTo(8, -1, 8, 2, 6, 2); ctx.closePath(); ctx.stroke();
+            } else if (code >= 51 && code <= 82) { ctx.beginPath(); ctx.moveTo(-4, 1); ctx.bezierCurveTo(-6, 1, -6, -2, -4, -2); ctx.bezierCurveTo(-4, -4, -1, -4, 1, -2); ctx.bezierCurveTo(3, -4, 6, -4, 6, -2); ctx.bezierCurveTo(8, -2, 8, 1, 6, 1); ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-1, 4); ctx.lineTo(-2, 7); ctx.moveTo(3, 4); ctx.lineTo(2, 7); ctx.stroke();
+            } else { ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); }
             ctx.restore();
         }
 
         function drawScrollableChart(id, uvs, temps, codes, startTime, isToday) {
-            const canvas = document.getElementById(id);
-            if (!canvas) return;
-            const ctx = canvas.getContext("2d");
-            const wrapper = canvas.parentElement;
-            const dpr = window.devicePixelRatio || 1;
-            
-            const step = 45; 
-            const px = 24; 
-            const totalWidth = (uvs.length - 1) * step + (px * 2);
-            const h = 210;
-            
-            canvas.style.width = totalWidth + "px";
-            canvas.width = totalWidth * dpr;
-            canvas.height = h * dpr;
-            ctx.scale(dpr, dpr);
-            const nowH = new Date().getHours();
-            ctx.clearRect(0, 0, totalWidth, h);
-
+            const canvas = document.getElementById(id); if (!canvas) return;
+            const ctx = canvas.getContext("2d"); const wrapper = canvas.parentElement; const dpr = window.devicePixelRatio || 1;
+            const step = 45; const px = 24; const totalWidth = (uvs.length - 1) * step + (px * 2); const h = 210;
+            canvas.style.width = totalWidth + "px"; canvas.width = totalWidth * dpr; canvas.height = h * dpr; ctx.scale(dpr, dpr);
+            const nowH = new Date().getHours(); ctx.clearRect(0, 0, totalWidth, h);
             uvs.forEach((uv, i) => {
-                const x = px + i * step;
-                const isRealNow = isToday && (startTime + i) === nowH;
-                const isGolden = uv >= 6 && !isBadWeather(codes[i]);
-
-                ctx.setLineDash([4, 4]);
-                ctx.strokeStyle = isRealNow ? 'rgba(255, 138, 0, 0.7)' : 'rgba(0, 0, 0, 0.05)';
-                ctx.lineWidth = isRealNow ? 2 : 1;
-                ctx.beginPath(); ctx.moveTo(x, 15); ctx.lineTo(x, h - 30); ctx.stroke();
-                ctx.setLineDash([]);
-
-                if (isGolden) {
-                    const grad = ctx.createLinearGradient(0, 0, 0, h - 30);
-                    grad.addColorStop(0, 'rgba(239, 68, 68, 0.08)');
-                    grad.addColorStop(0.5, 'rgba(239, 68, 68, 0.03)');
-                    grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(x - step/2, 15, step, h - 45);
-                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
-                    ctx.lineWidth = 2.5;
-                    ctx.lineCap = 'round';
-                    ctx.beginPath();
-                    ctx.moveTo(x - step/2 + 4, 15);
-                    ctx.lineTo(x + step/2 - 4, 15);
-                    ctx.stroke();
-                }
+                const x = px + i * step; const isRealNow = isToday && (startTime + i) === nowH; const isGolden = uv >= 6 && !isBadWeather(codes[i]);
+                ctx.setLineDash([4, 4]); ctx.strokeStyle = isRealNow ? 'rgba(255, 138, 0, 0.7)' : 'rgba(0, 0, 0, 0.05)'; ctx.lineWidth = isRealNow ? 2 : 1; ctx.beginPath(); ctx.moveTo(x, 15); ctx.lineTo(x, h - 30); ctx.stroke(); ctx.setLineDash([]);
+                if (isGolden) { const grad = ctx.createLinearGradient(0, 0, 0, h - 30); grad.addColorStop(0, 'rgba(239, 68, 68, 0.08)'); grad.addColorStop(0.5, 'rgba(239, 68, 68, 0.03)'); grad.addColorStop(1, 'rgba(239, 68, 68, 0)'); ctx.fillStyle = grad; ctx.fillRect(x - step/2, 15, step, h - 45); ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - step/2 + 4, 15); ctx.lineTo(x + step/2 - 4, 15); ctx.stroke(); }
             });
-
-            const tMin = Math.min(...temps), tMax = Math.max(...temps), tRange = (tMax - tMin) || 5;
-            const getTempY = (t) => 85 - ((t - tMin) / tRange) * 30;
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(96, 165, 250, 0.3)'; ctx.lineWidth = 1.5;
-            temps.forEach((t, i) => {
-                const x = px + i * step; 
-                if (i === 0) ctx.moveTo(x, getTempY(t)); else ctx.lineTo(x, getTempY(t));
-            });
-            ctx.stroke();
-            temps.forEach((t, i) => {
-                const x = px + i * step;
-                ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
-                ctx.font = '400 9px Inter'; ctx.textAlign = 'center';
-                ctx.fillText(Math.round(t) + "°", x, getTempY(t) - 8);
-            });
-
-            ctx.beginPath();
-            ctx.strokeStyle = '#FF8A00'; ctx.lineWidth = 3;
+            const tMin = Math.min(...temps), tMax = Math.max(...temps), tRange = (tMax - tMin) || 5; const getTempY = (t) => 85 - ((t - tMin) / tRange) * 30;
+            ctx.beginPath(); ctx.strokeStyle = 'rgba(96, 165, 250, 0.3)'; ctx.lineWidth = 1.5; temps.forEach((t, i) => { const x = px + i * step; if (i === 0) ctx.moveTo(x, getTempY(t)); else ctx.lineTo(x, getTempY(t)); }); ctx.stroke();
+            temps.forEach((t, i) => { const x = px + i * step; ctx.fillStyle = 'rgba(59, 130, 246, 0.8)'; ctx.font = '400 9px Inter'; ctx.textAlign = 'center'; ctx.fillText(Math.round(t) + "°", x, getTempY(t) - 8); });
+            ctx.beginPath(); ctx.strokeStyle = '#FF8A00'; ctx.lineWidth = 3; uvs.forEach((uv, i) => { const x = px + i * step; const y = 170 - (uv * 9); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke();
             uvs.forEach((uv, i) => {
-                const x = px + i * step;
-                const y = 170 - (uv * 9); 
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            });
-            ctx.stroke();
-
-            uvs.forEach((uv, i) => {
-                const x = px + i * step;
-                const hour = (startTime + i) % 24;
-                const badW = isBadWeather(codes[i]);
-                const isRealNow = isToday && (startTime + i) === nowH;
-                const isGolden = uv >= 6 && !isBadWeather(codes[i]);
-                
-                drawWeatherIconOnChart(ctx, x, 30, codes[i]);
-                
-                const uvY = 170 - (uv * 9);
-                if (isGolden) {
-                   ctx.fillStyle = '#EF4444';
-                   ctx.shadowBlur = 8;
-                   ctx.shadowColor = 'rgba(239, 68, 68, 0.5)';
-                } else {
-                   ctx.fillStyle = badW ? '#CBD5E1' : '#FF8A00';
-                   ctx.shadowBlur = 0;
-                }
-                ctx.beginPath(); ctx.arc(x, uvY, isGolden ? 5 : 4.5, 0, Math.PI * 2); ctx.fill();
-                ctx.shadowBlur = 0;
-                ctx.font = '700 11px Inter';
-                ctx.fillText(uv.toFixed(1), x, uvY - 12);
-                
-                if (isGolden) { ctx.fillStyle = '#EF4444'; ctx.font = '400 10px Inter'; }
-                else if (isRealNow) { ctx.fillStyle = '#FF8A00'; ctx.font = '700 13px Inter'; }
-                else { ctx.fillStyle = '#94A3B8'; ctx.font = '400 10px Inter'; }
+                const x = px + i * step; const hour = (startTime + i) % 24; const badW = isBadWeather(codes[i]); const isRealNow = isToday && (startTime + i) === nowH; const isGolden = uv >= 6 && !isBadWeather(codes[i]);
+                drawWeatherIconOnChart(ctx, x, 30, codes[i]); const uvY = 170 - (uv * 9);
+                if (isGolden) { ctx.fillStyle = '#EF4444'; ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(239, 68, 68, 0.5)'; } else { ctx.fillStyle = badW ? '#CBD5E1' : '#FF8A00'; ctx.shadowBlur = 0; }
+                ctx.beginPath(); ctx.arc(x, uvY, isGolden ? 5 : 4.5, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; ctx.font = '700 11px Inter'; ctx.fillText(uv.toFixed(1), x, uvY - 12);
+                if (isGolden) { ctx.fillStyle = '#EF4444'; ctx.font = '400 10px Inter'; } else if (isRealNow) { ctx.fillStyle = '#FF8A00'; ctx.font = '700 13px Inter'; } else { ctx.fillStyle = '#94A3B8'; ctx.font = '400 10px Inter'; }
                 ctx.fillText(hour, x, h - 10);
             });
-
-            requestAnimationFrame(() => {
-                let targetIdx = 0;
-                let scrollPos = 0;
-                if (isToday) {
-                    targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH);
-                    if(targetIdx === -1) targetIdx = 0;
-                    scrollPos = (targetIdx * step) + px - (step * 1.5);
-                } else {
-                    let maxVal = -1;
-                    uvs.forEach((v, idx) => { if(v > maxVal) { maxVal = v; targetIdx = idx; } });
-                    scrollPos = (targetIdx * step) + px - (wrapper.offsetWidth / 2);
-                }
-                wrapper.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
-            });
+            requestAnimationFrame(() => { let targetIdx = 0; let scrollPos = 0; if (isToday) { targetIdx = uvs.findIndex((_, idx) => (startTime + idx) === nowH); if(targetIdx === -1) targetIdx = 0; scrollPos = (targetIdx * step) + px - (step * 1.5); } else { let maxVal = -1; uvs.forEach((v, idx) => { if(v > maxVal) { maxVal = v; targetIdx = idx; } }); scrollPos = (targetIdx * step) + px - (wrapper.offsetWidth / 2); } wrapper.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' }); });
         }
 
         function renderWeekly() {
-            const list = document.getElementById("weeklyList");
-            if (!list) return;
-            list.innerHTML = "";
-            const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+            const list = document.getElementById("weeklyList"); if (!list) return;
+            list.innerHTML = ""; const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
             for (let i = 0; i < 7; i++) {
-                const date = new Date(); date.setDate(date.getDate() + i);
-                const maxUv = weeklyData.uv_index_max[i], wCode = weeklyData.weather_code[i];
-                const badW = isBadWeather(wCode), isOptimal = maxUv >= 6 && !badW;
-                const row = document.createElement("div");
-                row.className = "border-b border-slate-50 last:border-0";
-                row.innerHTML = `
-                    <div onclick="toggleDay(${i})" class="flex items-center justify-between py-5 cursor-pointer active:bg-slate-50 px-3 rounded-2xl transition-all group ${badW?'opacity-60':''}">
-                        <div class="flex items-center gap-4">
-                            <span class="w-9 font-normal text-xs ${i===0?'text-blue-500 font-bold':'text-slate-400'}">${i===0?'오늘':dayNames[date.getDay()]}</span>
-                            <div class="w-10 flex justify-center">${getWeatherIconHtml(wCode, 28)}</div>
-                        </div>
-                        <div class="flex-1 mx-5">
-                            <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                                <div class="h-full ${badW?'bg-slate-300':(isOptimal?'bg-orange-500':'bg-slate-300')}" style="width: ${Math.min(maxUv*10, 100)}%"></div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-[13px] font-bold ${isOptimal?'text-orange-500':'text-slate-400'}">${maxUv.toFixed(1)}</span>
-                            <i data-lucide="chevron-down" id="arrow-${i}" class="w-4 h-4 text-slate-300 transition-transform duration-300"></i>
-                        </div>
-                    </div>
-                    <div id="content-${i}" class="chart-container"><div class="scroll-chart-wrapper no-scrollbar"><canvas id="chart-${i}"></canvas></div></div>`;
+                const date = new Date(); date.setDate(date.getDate() + i); const maxUv = weeklyData.uv_index_max[i], wCode = weeklyData.weather_code[i];
+                const badW = isBadWeather(wCode), isOptimal = maxUv >= 6 && !badW; const row = document.createElement("div"); row.className = "border-b border-slate-50 last:border-0";
+                row.innerHTML = `<div onclick="toggleDay(${i})" class="flex items-center justify-between py-5 cursor-pointer active:bg-slate-50 px-3 rounded-2xl transition-all group ${badW?'opacity-60':''}"><div class="flex items-center gap-4"><span class="w-9 font-normal text-xs ${i===0?'text-blue-500 font-bold':'text-slate-400'}">${i===0?'오늘':dayNames[date.getDay()]}</span><div class="w-10 flex justify-center">${getWeatherIconHtml(wCode, 28)}</div></div><div class="flex-1 mx-5"><div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner"><div class="h-full ${badW?'bg-slate-300':(isOptimal?'bg-orange-500':'bg-slate-300')}" style="width: ${Math.min(maxUv*10, 100)}%"></div></div></div><div class="flex items-center gap-3"><span class="text-[13px] font-bold ${isOptimal?'text-orange-500':'text-slate-400'}">${maxUv.toFixed(1)}</span><i data-lucide="chevron-down" id="arrow-${i}" class="w-4 h-4 text-slate-300 transition-transform duration-300"></i></div></div><div id="content-${i}" class="chart-container"><div class="scroll-chart-wrapper no-scrollbar"><canvas id="chart-${i}"></canvas></div></div>`;
                 list.appendChild(row);
-            }
-            lucide.createIcons();
+            } lucide.createIcons();
         }
 
         function toggleDay(i) {
-            const content = document.getElementById(`content-${i}`);
-            const arrow = document.getElementById(`arrow-${i}`);
-            const isOpen = content.classList.contains('open');
-            document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open'));
-            document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
-            if (!isOpen) {
-                content.classList.add('open'); 
-                arrow.classList.add('rotate-180');
-                setTimeout(() => {
-                    const startIdx = i * 24;
-                    drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, false);
-                }, 100);
-            }
+            const content = document.getElementById(`content-${i}`); const arrow = document.getElementById(`arrow-${i}`); const isOpen = content.classList.contains('open');
+            document.querySelectorAll('.chart-container').forEach(c => c.classList.remove('open')); document.querySelectorAll('[id^="arrow-"]').forEach(a => a.classList.remove('rotate-180'));
+            if (!isOpen) { content.classList.add('open'); arrow.classList.add('rotate-180'); setTimeout(() => { const startIdx = i * 24; drawScrollableChart(`chart-${i}`, uvData.slice(startIdx, startIdx + 24), tempData.slice(startIdx, startIdx + 24), hourlyWeather.slice(startIdx, startIdx + 24), 0, false); }, 100); }
         }
 
         async function fetchLocationName(lat, lon) {
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-                const data = await res.json(); const a = data.address;
-                document.getElementById("locationName").innerText = (a.city || a.province || "내 위치") + " " + (a.suburb || "");
-            } catch { document.getElementById("locationName").innerText = "내 위치"; }
+            try { const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`); const data = await res.json(); const a = data.address; document.getElementById("locationName").innerText = (a.city || a.province || "내 위치") + " " + (a.suburb || ""); } catch { document.getElementById("locationName").innerText = "내 위치"; }
         }
 
         window.onload = () => { initLocation(); setInterval(initLocation, 600000); };
